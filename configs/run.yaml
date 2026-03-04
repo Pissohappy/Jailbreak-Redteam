@@ -17,11 +17,44 @@ max_tokens: 256
 concurrency: 8
 
 enabled_attacks:
-  - demo_figstep
+  # - demo_figstep
+  - attacks_strategy.figstep.attack:FigStepAttack
+  - attacks_strategy.jood.attack:JOODAttack
+  - attacks_strategy.arttextfigstep.attack:ArttextFigStepAttack
 
 # Optional: per-attack weight for weighted sampling.
 attack_weights:
-  demo_figstep: 1.0
+  # demo_figstep: 1.0
+  attacks_strategy.figstep.attack:FigStepAttack: 1.0
+  attacks_strategy.jood.attack:JOODAttack: 1.0
+  attacks_strategy.arttextfigstep.attack:ArttextFigStepAttack: 1.0
 
 # Optional: kwargs for user attacks referenced by entrypoint.
-attack_init_kwargs: {}
+# attack_init_kwargs: {}
+attack_init_kwargs:
+  attacks_strategy.figstep.attack:FigStepAttack:
+    output_image_dir: runs/demo-run-001/generated_images
+    cfg:
+      font_path: attacks/Arial Font/ARIAL.TTF
+      font_size: 70
+      wrap_width: 18
+      steps: 3
+  attacks_strategy.jood.attack:JOODAttack:
+    output_image_dir: runs/demo-run-001/generated_images
+    cfg:
+      harmless_image_path: dataset/apple.png
+      aug: mixup
+      lam: 0.5  # Mixing parameter alpha
+  attacks_strategy.arttextfigstep.attack:ArttextFigStepAttack:
+    output_image_dir: runs/demo-run-001/generated_images
+    cfg:
+      font_path: "attacks/Arial Font/ARIAL.TTF"
+      font_size: 70
+      wrap_width: 18
+      steps: 3
+      image_width: 1024
+      image_height: 1024
+      margin_x: 36
+      margin_y: 28
+      spacing: 10
+      fg: "#000000"
