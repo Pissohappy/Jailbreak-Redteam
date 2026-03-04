@@ -1,12 +1,27 @@
 run_id: demo-run-001
-target_vllm_base_url: "http://localhost:8000"
+
+target_vllm_base_url: ""
 target_vllm_model: "dummy-model"
 target_vllm_api_key: ""
+
 judge_base_url: ""
-beam_width: 3
+judge_model: "judge-model"
+
+beam_width: 2
 per_branch_candidates: 2
-max_rounds: 5
+max_rounds: 3
+
 enable_vision: true
 temperature: 0.2
-max_tokens: 512
-concurrency: 16
+max_tokens: 256
+concurrency: 8
+
+enabled_attacks:
+  - demo_figstep
+
+# Optional: per-attack weight for weighted sampling.
+attack_weights:
+  demo_figstep: 1.0
+
+# Optional: kwargs for user attacks referenced by entrypoint.
+attack_init_kwargs: {}

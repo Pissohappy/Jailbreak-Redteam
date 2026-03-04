@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import argparse
+import importlib
+import inspect
 import json
 from pathlib import Path
+from typing import Any
 
 import yaml
 from pydantic import BaseModel
@@ -32,6 +35,9 @@ class RunConfig(BaseModel):
     temperature: float = 0.2
     max_tokens: int = 512
     concurrency: int = 16
+    enabled_attacks: list[str] = ["demo_figstep"]
+    attack_weights: dict[str, float] = {}
+    attack_init_kwargs: dict[str, dict[str, Any]] = {}
 
 
 def load_config(path: Path) -> RunConfig:
@@ -41,29 +47,47 @@ def load_config(path: Path) -> RunConfig:
     return RunConfig.model_validate(raw)
 
 
-class _DummyAttack:
-    """Minimal BaseAttack-style stub for local EXPAND smoke test."""
+def _load_attack_from_entrypoint(entrypoint: str, init_kwargs: dict[str, Any]) -> Any:
+    """Load and instantiate attack class from `<module>:<ClassName>` entrypoint."""
 
-    cfg: dict[str, int] = {}
+    if ":" not in entrypoint:
+        raise ValueError(f"invalid entrypoint: {entrypoint}")
+    module_name, class_name = entrypoint.split(":", maxsplit=1)
+    module = importlib.import_module(module_name)
+    attack_cls = getattr(module, class_name)
 
-    def generate_test_case(self, original_prompt, image_path, case_id, **kwargs):
-        seed = kwargs.get("seed", 0)
-        return {
-            "case_id": case_id,
-            "jailbreak_prompt": f"[seed={seed}] {original_prompt}",
-            "jailbreak_image_path": image_path,
-            "original_prompt": original_prompt,
-            "original_image_path": image_path,
-        }
+    if callable(attack_cls) and inspect.isclass(attack_cls):
+        return attack_cls(**init_kwargs)
+    raise TypeError(f"entrypoint does not reference a class: {entrypoint}")
 
 
-def _build_demo_registry() -> AttackRegistry:
+def _build_registry(cfg: RunConfig) -> AttackRegistry:
+    from vlm_redteam.attacks.demo_figstep import DemoFigStepAttack
+
     registry = AttackRegistry()
-    registry.register(
-        "dummy_attack",
-        AttackAdapter(attack_obj=_DummyAttack(), attack_name="dummy_attack"),
-        weight=1.0,
-    )
+
+    enabled_attacks = cfg.enabled_attacks or ["demo_figstep"]
+    for attack_spec in enabled_attacks:
+        if attack_spec == "demo_figstep":
+            attack_name = "demo_figstep"
+            output_image_dir = Path("runs") / cfg.run_id / "generated_images"
+            attack_obj = DemoFigStepAttack(output_image_dir=output_image_dir)
+        elif ":" in attack_spec:
+            attack_name = attack_spec
+            init_kwargs = cfg.attack_init_kwargs.get(attack_spec, {})
+            attack_obj = _load_attack_from_entrypoint(attack_spec, init_kwargs)
+        else:
+            raise ValueError(
+                f"Unsupported attack spec '{attack_spec}'. Use 'demo_figstep' or '<module>:<ClassName>'."
+            )
+
+        weight = float(cfg.attack_weights.get(attack_name, 1.0))
+        registry.register(
+            attack_name,
+            AttackAdapter(attack_obj=attack_obj, attack_name=attack_name),
+            weight=weight,
+        )
+
     return registry
 
 
@@ -114,7 +138,7 @@ def main() -> None:
         print(json.dumps(resp, ensure_ascii=False, indent=2))
         return
 
-    registry = _build_demo_registry()
+    registry = _build_registry(cfg)
     set_default_registry(registry)
 
     initial_state = {
