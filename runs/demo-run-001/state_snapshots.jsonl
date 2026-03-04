@@ -8,3 +8,10 @@
 {"round_idx": 2, "beam_scores": [0.0], "best": {"branch_id": null, "aggregate_score": null}}
 {"round_idx": 3, "beam_scores": [0.0], "best": {"branch_id": "b-c-7728be99d0a2de60", "aggregate_score": 0.0}}
 {"round_idx": 1, "beam_scores": [1.0, 1.0], "best": {"branch_id": "b-c-b114aaf591c77241", "aggregate_score": 1.0}}
+{"round_idx": 1, "beam_scores": [1.0, 1.0], "best": {"branch_id": null, "aggregate_score": null}}
+{"round_idx": 2, "beam_scores": [4.0, 1.0], "best": {"branch_id": "b-c-01b35c9973cf4f23", "aggregate_score": 4.0}}
+{"round_idx": 1, "beam_scores": [1.0, 1.0], "best": {"branch_id": null, "aggregate_score": null}}
+{"round_idx": 2, "beam_scores": [4.0, 1.0], "best": {"branch_id": "b-c-652fa9039f7c623c", "aggregate_score": 4.0}}
+{"round_idx": 1, "beam_scores": [1.0, 1.0], "best": {"branch_id": null, "aggregate_score": null}}
+{"round_idx": 2, "beam_scores": [1.0, 1.0], "best": {"branch_id": null, "aggregate_score": null}}
+{"round_idx": 3, "beam_scores": [1.0, 1.0], "best": {"branch_id": "b-c-e7e1305719680558", "aggregate_score": 1.0}}
