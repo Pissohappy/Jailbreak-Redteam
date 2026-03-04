@@ -34,20 +34,20 @@ attack_weights:
 attack_init_kwargs:
   attacks_strategy.figstep.attack:FigStepAttack:
     output_image_dir: runs/demo-run-001/generated_images
-    cfg:
+    config:
       font_path: attacks/Arial Font/ARIAL.TTF
       font_size: 70
       wrap_width: 18
       steps: 3
   attacks_strategy.jood.attack:JOODAttack:
     output_image_dir: runs/demo-run-001/generated_images
-    cfg:
+    config:
       harmless_image_path: dataset/apple.png
       aug: mixup
       lam: 0.5  # Mixing parameter alpha
   attacks_strategy.arttextfigstep.attack:ArttextFigStepAttack:
     output_image_dir: runs/demo-run-001/generated_images
-    cfg:
+    config:
       font_path: "attacks/Arial Font/ARIAL.TTF"
       font_size: 70
       wrap_width: 18
