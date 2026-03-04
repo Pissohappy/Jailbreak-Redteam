@@ -7,6 +7,7 @@ import importlib
 import inspect
 import json
 from pathlib import Path
+import re
 from typing import Any
 
 import yaml
@@ -43,6 +44,8 @@ class RunConfig(BaseModel):
     enabled_attacks: list[str] = ["demo_figstep"]
     attack_weights: dict[str, float] = {}
     attack_init_kwargs: dict[str, dict[str, Any]] = {}
+    auto_load_strategy_configs: bool = True
+    strategy_configs_dir: str = "configs/attacks"
 
 
 def load_config(path: Path) -> RunConfig:
@@ -66,6 +69,62 @@ def _load_attack_from_entrypoint(entrypoint: str, init_kwargs: dict[str, Any]) -
     raise TypeError(f"entrypoint does not reference a class: {entrypoint}")
 
 
+def _infer_strategy_name_from_entrypoint(attack_spec: str) -> str | None:
+    """Infer strategy name from an attack entrypoint.
+
+    Example:
+    - attacks_strategy.figstep.attack:FigStepAttack -> figstep
+    """
+
+    if ":" not in attack_spec:
+        return None
+    module_name, _ = attack_spec.split(":", maxsplit=1)
+    match = re.match(r"^attacks_strategy\.([a-zA-Z0-9_]+)(\.|$)", module_name)
+    if not match:
+        return None
+    return match.group(1)
+
+
+def _load_strategy_parameters(strategy_name: str, cfg: RunConfig) -> dict[str, Any]:
+    """Load `parameters` from `configs/attacks/<strategy>.yaml` if present."""
+
+    cfg_path = Path(cfg.strategy_configs_dir) / f"{strategy_name}.yaml"
+    if not cfg_path.exists():
+        return {}
+
+    raw = yaml.safe_load(cfg_path.read_text(encoding="utf-8")) or {}
+    params = raw.get("parameters", {})
+    if not isinstance(params, dict):
+        return {}
+    return dict(params)
+
+
+def _resolve_init_kwargs_for_attack(attack_spec: str, cfg: RunConfig) -> dict[str, Any]:
+    """Resolve init kwargs with optional auto-merge from strategy config files."""
+
+    init_kwargs = dict(cfg.attack_init_kwargs.get(attack_spec, {}))
+
+    if not cfg.auto_load_strategy_configs:
+        return init_kwargs
+
+    strategy_name = _infer_strategy_name_from_entrypoint(attack_spec)
+    if not strategy_name:
+        return init_kwargs
+
+    strategy_params = _load_strategy_parameters(strategy_name, cfg)
+    if not strategy_params:
+        return init_kwargs
+
+    existing_config = init_kwargs.get("config", {})
+    if isinstance(existing_config, dict):
+        merged_config = dict(strategy_params)
+        merged_config.update(existing_config)
+        init_kwargs["config"] = merged_config
+
+    init_kwargs.setdefault("output_image_dir", str(Path("runs") / cfg.run_id / "generated_images"))
+    return init_kwargs
+
+
 def _build_registry(cfg: RunConfig) -> AttackRegistry:
     from vlm_redteam.attacks.demo_figstep import DemoFigStepAttack
 
@@ -79,7 +138,7 @@ def _build_registry(cfg: RunConfig) -> AttackRegistry:
             attack_obj = DemoFigStepAttack(output_image_dir=output_image_dir)
         elif ":" in attack_spec:
             attack_name = attack_spec
-            init_kwargs = cfg.attack_init_kwargs.get(attack_spec, {})
+            init_kwargs = _resolve_init_kwargs_for_attack(attack_spec, cfg)
             attack_obj = _load_attack_from_entrypoint(attack_spec, init_kwargs)
         else:
             raise ValueError(
