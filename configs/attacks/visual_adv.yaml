@@ -1,0 +1,12 @@
+name: "visual_adv"
+
+parameters:
+  epsilon: 8
+  alpha: 2
+  n_iters: 500
+  constrained: true
+  batch_size: 8
+  image_path: "attacks/data/clean.jpeg"
+  target_path: "attacks/data/derogatory_corpus.csv"
+  target_model: "minigpt4.minigpt4_model.MiniGPT4"
+  load_model: true

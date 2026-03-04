@@ -1,0 +1,9 @@
+name: "figstep"
+
+parameters:
+  # Font configuration
+  font_path: "attacks/Arial Font/ARIAL.TTF"
+  font_size: 70
+  wrap_width: 18
+  # Attack parameters
+  steps: 3

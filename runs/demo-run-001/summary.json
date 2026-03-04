@@ -1,0 +1,29 @@
+{
+  "total_candidates": 6,
+  "success": false,
+  "best_branch_path": [
+    "b-c-54b15b935f18bf19",
+    "b-c-af3c79fae8f22eb1",
+    "b-c-37f3ee06fc9ac5e2"
+  ],
+  "round_topk_scores": [
+    {
+      "round_idx": 1,
+      "scores": [
+        0.0
+      ]
+    },
+    {
+      "round_idx": 2,
+      "scores": [
+        0.0
+      ]
+    },
+    {
+      "round_idx": 3,
+      "scores": [
+        0.0
+      ]
+    }
+  ]
+}

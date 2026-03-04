@@ -180,6 +180,18 @@ def main() -> None:
 
     checkpointer = InMemorySaver()
     app = compile_graph(checkpointer=checkpointer)
+
+    # from langchain_core.runnables.graph import MermaidDrawMethod
+
+    # # 获取图片的二进制数据 (bytes)
+    # png_data = app.get_graph().draw_mermaid_png(draw_method=MermaidDrawMethod.API)
+
+    # # 写入文件
+    # with open("graph.png", "wb") as f:
+    #     f.write(png_data)
+
+    # print("流程图已保存为 graph.png")
+
     thread_config = {"configurable": {"thread_id": cfg.run_id}}
     final_state = app.invoke(initial_state, config=thread_config)
     export_checkpoints(

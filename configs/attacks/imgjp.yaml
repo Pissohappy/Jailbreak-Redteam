@@ -1,0 +1,8 @@
+name: "imgjp"
+parameters:
+  device: "cuda"
+  eps: 32
+  alpha: 1
+  steps: 3000
+  target_model: "minigpt4.minigpt4_model.MiniGPT4"
+  load_model: true

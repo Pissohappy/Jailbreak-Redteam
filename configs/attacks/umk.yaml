@@ -1,0 +1,7 @@
+name: "umk"
+
+parameters:
+    prior_image: "attacks/data/clean.jpeg"
+    corpus: "attacks/data/harmful_behaviors.csv"
+    target_model: "minigpt4.minigpt4_model.MiniGPT4"
+    load_model: true

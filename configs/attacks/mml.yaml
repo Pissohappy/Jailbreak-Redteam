@@ -1,0 +1,10 @@
+name: "mml"
+
+parameters:
+  font_path: attacks/Arial Font/ARIAL.TTF
+  font_size: 60
+  img_size: [760, 760]
+  wrap_width: 20
+  steps: 3
+  
+  aug_type: wr

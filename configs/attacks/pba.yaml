@@ -1,0 +1,26 @@
+name: "pba"
+
+parameters:
+    prior_image: "attacks/data/clean.jpeg"
+    corpus: "attacks/data/harmful_behaviors.csv"
+    manual_corpus: "attacks/data/manual_harmful_instructions.csv"
+    epoch: 50
+    batch_size: 8
+    lamba: 1.0
+    alpha: 0.0039215686
+    eps: 0.125490196
+    constrained: true
+    n_query: 10
+    eval_every: 50
+    early_patience: 10
+    rounds: 10
+    tox_threshold: 1.5
+    queries_per_eval: 1
+    epoch_img: 4
+    epoch_txt: 1
+    K: 50
+    target_model: "minigpt4.minigpt4_model.MiniGPT4"
+    n_candidates: 4
+    suffix_len: 1
+    load_model: true
+    

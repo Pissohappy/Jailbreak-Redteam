@@ -1,0 +1,6 @@
+name: jood
+parameters:
+
+  harmless_image_path: dataset/apple.png
+  aug: mixup
+  lam: 0.5  # Mixing parameter alpha

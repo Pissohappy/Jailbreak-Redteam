@@ -1,0 +1,13 @@
+name: "viscra"
+
+parameters:
+    target_model: "qwen2_5-vl"
+    target_model_path: /path/to/Qwen/Qwen2.5-VL-7B-Instruct/
+    attention_layer: 18
+    attention_block_size: 12
+    grid_dim: 28
+    gaussian_sigma: 14
+    attack_type: "attention"
+    mask_color: "green"
+    device: "cuda"
+    load_model: true

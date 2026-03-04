@@ -1,0 +1,9 @@
+name: "si"
+
+parameters:
+  # Victim model configuration
+  target_model_name: llava-v1.6-mistral-7b-hf
+  target_model_path: /mnt/disk1/weights/vlm/llava-v1.6-mistral-7b-hf
+  # Auxiliary model configuration
+  auxiliary_model_name: "gpt-3.5-turbo"
+  load_model: true

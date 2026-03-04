@@ -1,0 +1,24 @@
+name: "cs_dj"
+
+parameters:
+  # === Path Configuration ===
+  # src_dir: "/path/to/liuhaotian/LLaVA-CC3M-Pretrain-595K/images"
+  src_dir: "/mnt/disk1/szchen/VLMBenchmark/repo/OmniSafeBench-MM/dataset/LLaVA-CC3M-Pretrain-595K"
+  clip_path: "/mnt/disk1/weights/vlm/clip-ViT-L-14"
+  save_embeding_path: image_embedding
+  save_map_path: "image_map"
+
+  # === Algorithm Parameters ===
+  seed: 42
+  num_images: 1000
+  max_pairs_per_question: 15
+  max_items_per_file: 5
+
+  # === Auxiliary Model Configuration ===
+  auxiliary_model_name: "gpt-4o-mini"
+
+  # === Font and Image Processing Parameters ===
+  font_path: "attacks/Arial Font/ARIAL.TTF"
+  font_size: 50
+  num_images: 100
+  dry_run: true

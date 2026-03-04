@@ -1,0 +1,14 @@
+name: himrd
+
+parameters:
+  stable_diffusion_path: /mnt/disk1/weights/t2i/stable-diffusion-3.5-medium
+  t2i_model_key: stable-diffusion-3-medium
+  t2i_device: cuda:0
+  t2i_dtype: float16
+  harmbench_path: /path/to/cais/HarmBench-Llama-2-13b-cls
+  top_font_path: "attacks/Arial Font/ARIAL.TTF"
+  top_font_size: 25
+  target_model_name: gpt-3.5-turbo
+  enable_sd: true
+  auxiliary_model_name: gpt-3.5-turbo
+  load_model: true
