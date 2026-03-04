@@ -1,16 +1,17 @@
 """Graph builder for LangGraph."""
 
-from langgraph.graph import START, END, StateGraph
+from langgraph.graph import END, START, StateGraph
 
-from .state import BeamState
-from .nodes.expand import expand_node
 from .nodes.execute import execute_node
+from .nodes.expand import expand_node
 from .nodes.judge import judge_node
 from .nodes.select import select_node
+from .state import BeamState
 
 
 def compile_graph():
-    """Compile a minimal linear graph to validate wiring."""
+    """Compile a minimal linear graph with EXPAND wired in."""
+
     graph = StateGraph(BeamState)
     graph.add_node("expand", expand_node)
     graph.add_node("execute", execute_node)

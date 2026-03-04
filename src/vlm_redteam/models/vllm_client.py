@@ -1,12 +1,175 @@
-"""vLLM client placeholder."""
+"""OpenAI-compatible HTTP client for local vLLM endpoints."""
+
+from __future__ import annotations
+
+import asyncio
+import base64
+import mimetypes
+from pathlib import Path
+from typing import Any
 
 import httpx
 
 
 class VLLMClient:
-    """Minimal HTTP client wrapper for target vLLM."""
+    """Client for `/v1/chat/completions` with optional vision input support."""
 
-    def __init__(self, base_url: str, model: str) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        model: str,
+        api_key: str | None = None,
+        timeout: int = 60,
+        enable_vision: bool = True,
+        concurrency: int = 16,
+    ) -> None:
         self.base_url = base_url.rstrip("/")
         self.model = model
-        self._client = httpx.Client(timeout=30)
+        self.api_key = api_key
+        self.timeout = timeout
+        self.enable_vision = enable_vision
+        self.concurrency = concurrency
+
+    def _headers(self) -> dict[str, str]:
+        headers = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+        return headers
+
+    @staticmethod
+    def _image_to_data_url(image_path: str | Path) -> str:
+        path = Path(image_path)
+        raw = path.read_bytes()
+        mime_type, _ = mimetypes.guess_type(path.name)
+        if mime_type not in {"image/png", "image/jpeg"}:
+            mime_type = "image/png"
+        b64 = base64.b64encode(raw).decode("utf-8")
+        return f"data:{mime_type};base64,{b64}"
+
+    def build_messages(self, user_text: str, image_path: str | None) -> list[dict[str, Any]]:
+        """Construct OpenAI-compatible messages payload for text-only or vision input."""
+
+        if self.enable_vision and image_path and Path(image_path).exists():
+            return [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": user_text},
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": self._image_to_data_url(image_path),
+                            },
+                        },
+                    ],
+                }
+            ]
+        return [{"role": "user", "content": user_text}]
+
+    async def _request_with_retry(
+        self,
+        client: httpx.AsyncClient,
+        payload: dict[str, Any],
+        max_retries: int = 3,
+    ) -> str:
+        delay = 0.5
+        for attempt in range(max_retries + 1):
+            try:
+                resp = await client.post(
+                    f"{self.base_url}/v1/chat/completions",
+                    headers=self._headers(),
+                    json=payload,
+                )
+                if resp.status_code == 429 or resp.status_code >= 500:
+                    if attempt < max_retries:
+                        await asyncio.sleep(delay)
+                        delay *= 2
+                        continue
+                resp.raise_for_status()
+                body = resp.json()
+                return body["choices"][0]["message"]["content"]
+            except httpx.HTTPStatusError as exc:
+                if attempt < max_retries and (
+                    exc.response.status_code == 429 or exc.response.status_code >= 500
+                ):
+                    await asyncio.sleep(delay)
+                    delay *= 2
+                    continue
+                raise
+            except httpx.RequestError:
+                if attempt < max_retries:
+                    await asyncio.sleep(delay)
+                    delay *= 2
+                    continue
+                raise
+        raise RuntimeError("unreachable")
+
+    async def _agenerate_one(
+        self,
+        user_text: str,
+        image_path: str | None,
+        temperature: float,
+        max_tokens: int,
+    ) -> str:
+        payload = {
+            "model": self.model,
+            "messages": self.build_messages(user_text=user_text, image_path=image_path),
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+        }
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            return await self._request_with_retry(client=client, payload=payload)
+
+    def generate_one(
+        self,
+        user_text: str,
+        image_path: str | None,
+        temperature: float,
+        max_tokens: int,
+    ) -> str:
+        """Generate one model response."""
+
+        return asyncio.run(
+            self._agenerate_one(
+                user_text=user_text,
+                image_path=image_path,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+        )
+
+    async def _agenerate_batch(self, list_of_inputs: list[dict[str, Any]]) -> list[str]:
+        sem = asyncio.Semaphore(self.concurrency)
+        results: list[str | None] = [None] * len(list_of_inputs)
+
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+
+            async def _run_one(idx: int, item: dict[str, Any]) -> None:
+                async with sem:
+                    payload = {
+                        "model": self.model,
+                        "messages": self.build_messages(
+                            user_text=item["user_text"],
+                            image_path=item.get("image_path"),
+                        ),
+                        "temperature": item["temperature"],
+                        "max_tokens": item["max_tokens"],
+                    }
+                    results[idx] = await self._request_with_retry(client=client, payload=payload)
+
+            await asyncio.gather(*[_run_one(i, inp) for i, inp in enumerate(list_of_inputs)])
+
+        return [r if r is not None else "" for r in results]
+
+    def generate_batch(self, list_of_inputs: list[dict[str, Any]]) -> list[str]:
+        """Batch generation with async concurrency control and retries."""
+
+        return asyncio.run(self._agenerate_batch(list_of_inputs))
+
+    def ping(self) -> dict[str, Any]:
+        """Ping OpenAI-compatible endpoint via `/v1/models`."""
+
+        with httpx.Client(timeout=self.timeout) as client:
+            resp = client.get(f"{self.base_url}/v1/models", headers=self._headers())
+            resp.raise_for_status()
+            return resp.json()

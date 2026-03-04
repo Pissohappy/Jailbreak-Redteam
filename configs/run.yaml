@@ -1,7 +1,12 @@
 run_id: demo-run-001
 target_vllm_base_url: "http://localhost:8000"
 target_vllm_model: "dummy-model"
+target_vllm_api_key: ""
 judge_base_url: ""
 beam_width: 3
 per_branch_candidates: 2
 max_rounds: 5
+enable_vision: true
+temperature: 0.2
+max_tokens: 512
+concurrency: 16
