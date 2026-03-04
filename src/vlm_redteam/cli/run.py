@@ -21,6 +21,7 @@ from vlm_redteam.graph.state import Branch
 from vlm_redteam.models.vllm_client import VLLMClient
 from vlm_redteam.storage.run_outputs import export_checkpoints, write_run_reports
 
+_CFG_KEY_DEPRECATION_WARNED = False
 
 class RunConfig(BaseModel):
     """Runtime config schema."""
@@ -102,7 +103,14 @@ def _load_strategy_parameters(strategy_name: str, cfg: RunConfig) -> dict[str, A
 def _resolve_init_kwargs_for_attack(attack_spec: str, cfg: RunConfig) -> dict[str, Any]:
     """Resolve init kwargs with optional auto-merge from strategy config files."""
 
+    global _CFG_KEY_DEPRECATION_WARNED
+
     init_kwargs = dict(cfg.attack_init_kwargs.get(attack_spec, {}))
+    if "cfg" in init_kwargs and "config" not in init_kwargs:
+        init_kwargs["config"] = init_kwargs.pop("cfg")
+        if not _CFG_KEY_DEPRECATION_WARNED:
+            print("[DEPRECATION] `attack_init_kwargs.*.cfg` is deprecated; please use `config` instead.")
+            _CFG_KEY_DEPRECATION_WARNED = True
 
     if not cfg.auto_load_strategy_configs:
         return init_kwargs

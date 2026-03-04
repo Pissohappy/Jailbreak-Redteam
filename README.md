@@ -103,7 +103,7 @@ attack_weights:
 attack_init_kwargs:
   attacks_strategy.figstep.attack:FigStepAttack:
     output_image_dir: runs/demo-run-001/generated_images
-    cfg:
+    config:
       font_path: attacks/Arial Font/ARIAL.TTF
       font_size: 70
       wrap_width: 18
@@ -111,7 +111,7 @@ attack_init_kwargs:
 
   attacks_strategy.sd35_figstep.attack:SD35FigStepAttack:
     output_image_dir: runs/demo-run-001/generated_images
-    cfg:
+    config:
       stable_diffusion_path: /mnt/disk1/weights/t2i/stable-diffusion-3.5-medium
       guidance_scale: 7.0
       steps: 3
