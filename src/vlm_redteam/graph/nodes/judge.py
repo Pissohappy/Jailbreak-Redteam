@@ -69,9 +69,10 @@ def judge_candidates(state: GraphState) -> GraphState:
     return state
 
 
-def judge_node(state: BeamState) -> BeamState:
-    """Legacy placeholder judge node for skeleton graph compile path."""
+def judge_node(state: GraphState | BeamState) -> GraphState | BeamState:
+    """Compatibility wrapper for skeleton graph and full GraphState."""
 
-    if is_dataclass(state):
+    if is_dataclass(state) and isinstance(state, BeamState):
         state.notes.append("judge")
-    return state
+        return state
+    return judge_candidates(state)
