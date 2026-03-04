@@ -12,8 +12,6 @@ from pydantic import BaseModel
 from vlm_redteam.attacks.adapter import AttackAdapter
 from vlm_redteam.attacks.registry import AttackRegistry, set_default_registry
 from vlm_redteam.graph.build_graph import compile_graph
-from vlm_redteam.graph.nodes.execute import execute_target_node
-from vlm_redteam.graph.nodes.expand import expand_node
 from vlm_redteam.graph.state import Branch
 from vlm_redteam.models.vllm_client import VLLMClient
 
@@ -26,6 +24,7 @@ class RunConfig(BaseModel):
     target_vllm_model: str
     target_vllm_api_key: str | None = None
     judge_base_url: str | None = None
+    judge_model: str = "judge-model"
     beam_width: int
     per_branch_candidates: int
     max_rounds: int
@@ -68,10 +67,35 @@ def _build_demo_registry() -> AttackRegistry:
     return registry
 
 
+def _print_best_summary(final_state: dict) -> None:
+    best = final_state.get("best")
+    if not best:
+        print("No best branch found.")
+        return
+
+    history = best.history if hasattr(best, "history") else best.get("history", [])
+    score = best.aggregate_score if hasattr(best, "aggregate_score") else best.get("aggregate_score")
+    success = best.judge_success if hasattr(best, "judge_success") else best.get("judge_success")
+    branch_id = best.branch_id if hasattr(best, "branch_id") else best.get("branch_id")
+
+    print("=== Best Branch Summary ===")
+    print(f"branch_id: {branch_id}")
+    print(f"success: {success}")
+    print(f"aggregate_score: {score}")
+    print(f"history_len: {len(history)}")
+    if history:
+        last = history[-1]
+        print(f"last_user_text: {last.get('user_text', '')[:120]}")
+        print(f"last_image_path: {last.get('image_path')}")
+        print(f"last_target_output: {str(last.get('target_output', ''))[:200]}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run VLM redteam graph")
     parser.add_argument("--config", required=True, help="Path to YAML config")
     parser.add_argument("--ping", action="store_true", help="Ping target vLLM endpoint")
+    parser.add_argument("--goal", default="demo-goal", help="Task goal text")
+    parser.add_argument("--image-path", default=None, help="Task image path")
     args = parser.parse_args()
 
     cfg = load_config(Path(args.config))
@@ -93,9 +117,9 @@ def main() -> None:
     registry = _build_demo_registry()
     set_default_registry(registry)
 
-    demo_state = {
+    initial_state = {
         "run_id": cfg.run_id,
-        "task": {"goal": "demo-goal", "image_path": None},
+        "task": {"goal": args.goal, "image_path": args.image_path},
         "round_idx": 0,
         "max_rounds": cfg.max_rounds,
         "beam_width": cfg.beam_width,
@@ -111,20 +135,19 @@ def main() -> None:
             "target_vllm_base_url": cfg.target_vllm_base_url,
             "target_vllm_model": cfg.target_vllm_model,
             "target_vllm_api_key": cfg.target_vllm_api_key,
+            "judge_base_url": cfg.judge_base_url or "",
+            "judge_model": cfg.judge_model,
             "temperature": cfg.temperature,
             "max_tokens": cfg.max_tokens,
             "enable_vision": cfg.enable_vision,
             "concurrency": cfg.concurrency,
         },
     }
-    demo_out = expand_node(demo_state)
-    print(f"Expand generated candidates: {len(demo_out['candidates'])}")
 
-    demo_out = execute_target_node(demo_out)
-    print(f"Execute generated outputs: {sum(1 for c in demo_out['candidates'] if getattr(c, 'target_output', None))}")
-
-    _ = compile_graph()
-    print("Graph compiled OK")
+    app = compile_graph()
+    final_state = app.invoke(initial_state)
+    print("Graph run finished")
+    _print_best_summary(final_state)
 
 
 if __name__ == "__main__":
