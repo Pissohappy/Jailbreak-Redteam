@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from vlm_redteam.attacks.adapter import AttackAdapter
 from vlm_redteam.attacks.registry import AttackRegistry, set_default_registry
 from vlm_redteam.graph.build_graph import compile_graph
+from vlm_redteam.graph.nodes.execute import execute_target_node
 from vlm_redteam.graph.nodes.expand import expand_node
 from vlm_redteam.graph.state import Branch
 from vlm_redteam.models.vllm_client import VLLMClient
@@ -103,10 +104,24 @@ def main() -> None:
         "candidates": [],
         "done": False,
         "best": None,
-        "stats": {"seed": 0, "runs_root": "runs", "attack_registry": registry},
+        "stats": {
+            "seed": 0,
+            "runs_root": "runs",
+            "attack_registry": registry,
+            "target_vllm_base_url": cfg.target_vllm_base_url,
+            "target_vllm_model": cfg.target_vllm_model,
+            "target_vllm_api_key": cfg.target_vllm_api_key,
+            "temperature": cfg.temperature,
+            "max_tokens": cfg.max_tokens,
+            "enable_vision": cfg.enable_vision,
+            "concurrency": cfg.concurrency,
+        },
     }
     demo_out = expand_node(demo_state)
     print(f"Expand generated candidates: {len(demo_out['candidates'])}")
+
+    demo_out = execute_target_node(demo_out)
+    print(f"Execute generated outputs: {sum(1 for c in demo_out['candidates'] if getattr(c, 'target_output', None))}")
 
     _ = compile_graph()
     print("Graph compiled OK")

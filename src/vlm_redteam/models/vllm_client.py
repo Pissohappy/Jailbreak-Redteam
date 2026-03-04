@@ -8,7 +8,10 @@ import mimetypes
 from pathlib import Path
 from typing import Any
 
-import httpx
+try:
+    import httpx
+except ModuleNotFoundError:  # pragma: no cover - compatibility fallback for limited envs.
+    httpx = None  # type: ignore[assignment]
 
 
 class VLLMClient:
@@ -68,7 +71,7 @@ class VLLMClient:
 
     async def _request_with_retry(
         self,
-        client: httpx.AsyncClient,
+        client: Any,
         payload: dict[str, Any],
         max_retries: int = 3,
     ) -> str:
@@ -88,16 +91,11 @@ class VLLMClient:
                 resp.raise_for_status()
                 body = resp.json()
                 return body["choices"][0]["message"]["content"]
-            except httpx.HTTPStatusError as exc:
-                if attempt < max_retries and (
-                    exc.response.status_code == 429 or exc.response.status_code >= 500
-                ):
-                    await asyncio.sleep(delay)
-                    delay *= 2
-                    continue
-                raise
-            except httpx.RequestError:
-                if attempt < max_retries:
+            except Exception as exc:
+                status_code = getattr(getattr(exc, "response", None), "status_code", None)
+                retryable_status = status_code == 429 or (status_code is not None and status_code >= 500)
+                request_err = httpx is not None and isinstance(exc, httpx.RequestError)
+                if attempt < max_retries and (retryable_status or request_err):
                     await asyncio.sleep(delay)
                     delay *= 2
                     continue
@@ -111,6 +109,11 @@ class VLLMClient:
         temperature: float,
         max_tokens: int,
     ) -> str:
+        if not self.base_url:
+            return f"[dummy vllm output] {user_text[:64]}"
+        if httpx is None:
+            raise RuntimeError("httpx is required when vLLM base_url is set")
+
         payload = {
             "model": self.model,
             "messages": self.build_messages(user_text=user_text, image_path=image_path),
@@ -139,6 +142,11 @@ class VLLMClient:
         )
 
     async def _agenerate_batch(self, list_of_inputs: list[dict[str, Any]]) -> list[str]:
+        if not self.base_url:
+            return [f"[dummy vllm output] {item['user_text'][:64]}" for item in list_of_inputs]
+        if httpx is None:
+            raise RuntimeError("httpx is required when vLLM base_url is set")
+
         sem = asyncio.Semaphore(self.concurrency)
         results: list[str | None] = [None] * len(list_of_inputs)
 
@@ -168,6 +176,11 @@ class VLLMClient:
 
     def ping(self) -> dict[str, Any]:
         """Ping OpenAI-compatible endpoint via `/v1/models`."""
+
+        if not self.base_url:
+            return {"data": [{"id": "dummy-model", "object": "model"}]}
+        if httpx is None:
+            raise RuntimeError("httpx is required when vLLM base_url is set")
 
         with httpx.Client(timeout=self.timeout) as client:
             resp = client.get(f"{self.base_url}/v1/models", headers=self._headers())
