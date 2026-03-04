@@ -73,4 +73,4 @@ def test_attack_registry_basic_and_sampling() -> None:
 
     sampled = registry.sample_attacks(k=2, rng=Random(0))
     assert len(sampled) == 2
-    assert set(sampled) == {"a1", "a2"}
+    assert all(name in {"a1", "a2"} for name in sampled)

@@ -9,7 +9,11 @@ from pathlib import Path
 import yaml
 from pydantic import BaseModel
 
+from vlm_redteam.attacks.adapter import AttackAdapter
+from vlm_redteam.attacks.registry import AttackRegistry, set_default_registry
 from vlm_redteam.graph.build_graph import compile_graph
+from vlm_redteam.graph.nodes.expand import expand_node
+from vlm_redteam.graph.state import Branch
 from vlm_redteam.models.vllm_client import VLLMClient
 
 
@@ -32,8 +36,35 @@ class RunConfig(BaseModel):
 
 def load_config(path: Path) -> RunConfig:
     """Load and validate YAML config."""
+
     raw = yaml.safe_load(path.read_text(encoding="utf-8"))
     return RunConfig.model_validate(raw)
+
+
+class _DummyAttack:
+    """Minimal BaseAttack-style stub for local EXPAND smoke test."""
+
+    cfg: dict[str, int] = {}
+
+    def generate_test_case(self, original_prompt, image_path, case_id, **kwargs):
+        seed = kwargs.get("seed", 0)
+        return {
+            "case_id": case_id,
+            "jailbreak_prompt": f"[seed={seed}] {original_prompt}",
+            "jailbreak_image_path": image_path,
+            "original_prompt": original_prompt,
+            "original_image_path": image_path,
+        }
+
+
+def _build_demo_registry() -> AttackRegistry:
+    registry = AttackRegistry()
+    registry.register(
+        "dummy_attack",
+        AttackAdapter(attack_obj=_DummyAttack(), attack_name="dummy_attack"),
+        weight=1.0,
+    )
+    return registry
 
 
 def main() -> None:
@@ -57,6 +88,25 @@ def main() -> None:
         resp = client.ping()
         print(json.dumps(resp, ensure_ascii=False, indent=2))
         return
+
+    registry = _build_demo_registry()
+    set_default_registry(registry)
+
+    demo_state = {
+        "run_id": cfg.run_id,
+        "task": {"goal": "demo-goal", "image_path": None},
+        "round_idx": 0,
+        "max_rounds": cfg.max_rounds,
+        "beam_width": cfg.beam_width,
+        "per_branch_candidates": cfg.per_branch_candidates,
+        "beam": [Branch(branch_id="b0", parent_id=None, round_idx=0)],
+        "candidates": [],
+        "done": False,
+        "best": None,
+        "stats": {"seed": 0, "runs_root": "runs", "attack_registry": registry},
+    }
+    demo_out = expand_node(demo_state)
+    print(f"Expand generated candidates: {len(demo_out['candidates'])}")
 
     _ = compile_graph()
     print("Graph compiled OK")

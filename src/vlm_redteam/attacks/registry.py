@@ -14,6 +14,9 @@ class _RegistryEntry:
     weight: float
 
 
+_DEFAULT_REGISTRY: "AttackRegistry | None" = None
+
+
 class AttackRegistry:
     """Registry with weighted sampling support for attack adapters."""
 
@@ -32,20 +35,27 @@ class AttackRegistry:
         return self._registry[name].adapter
 
     def sample_attacks(self, k: int, rng: Random) -> list[str]:
-        """Sample up to k unique attack names according to weights."""
+        """Sample up to k attack names according to weights (with replacement)."""
 
         if k <= 0 or not self._registry:
             return []
 
-        items = list(self._registry.items())
-        k = min(k, len(items))
-        selected: list[str] = []
+        names = [name for name, _ in self._registry.items()]
+        weights = [entry.weight for _, entry in self._registry.items()]
+        return rng.choices(names, weights=weights, k=k)
 
-        for _ in range(k):
-            names = [name for name, _ in items]
-            weights = [entry.weight for _, entry in items]
-            picked = rng.choices(names, weights=weights, k=1)[0]
-            selected.append(picked)
-            items = [(name, entry) for name, entry in items if name != picked]
 
-        return selected
+def set_default_registry(registry: AttackRegistry) -> None:
+    """Set process-wide default registry for graph nodes."""
+
+    global _DEFAULT_REGISTRY
+    _DEFAULT_REGISTRY = registry
+
+
+def get_default_registry() -> AttackRegistry:
+    """Get process-wide default registry (lazy-initialized)."""
+
+    global _DEFAULT_REGISTRY
+    if _DEFAULT_REGISTRY is None:
+        _DEFAULT_REGISTRY = AttackRegistry()
+    return _DEFAULT_REGISTRY
