@@ -1,6 +1,6 @@
 # VLM Redteam Skeleton
 
-A minimal runnable repository skeleton for a future LangGraph-based multi-round beam-search VLM red-team framework.
+一个可运行的 LangGraph 多轮 beam-search VLM redteam demo。
 
 ## Requirements
 
@@ -15,59 +15,56 @@ pip install -U pip
 pip install -e .
 ```
 
-## Run
+## 一键跑通 Demo
 
 ```bash
-python -m vlm_redteam.cli.run --config configs/run.yaml
+python -m vlm_redteam.cli.run --config configs/run.yaml --goal "Summarize this goal"
 ```
 
-Expected output:
+默认配置会：
+- 使用内置 `demo_figstep` 攻击；
+- 跑 `max_rounds=3`，`beam_width=2`，`per_branch_candidates=2`；
+- 当 `target_vllm_base_url` 或 `judge_base_url` 为空时自动走 dummy 模式（但完整节点仍执行）。
 
-- `Loaded config OK`
-- `Graph compiled OK`
+运行后会产出：
+- `runs/<run_id>/events.jsonl`
+- `runs/<run_id>/artifacts/`（保存去重后的图片）
+- `runs/<run_id>/generated_images/`（demo attack 生成的原始图片）
 
-## 如何接入自定义攻击方法
+## 内置示例攻击
 
-你可以复用现有 `BaseAttack/TestCase` 风格攻击类（例如 `FigStepAttack`），通过 `AttackAdapter` 和 `AttackRegistry` 接入。
+- 文件：`attacks/demo_figstep.py`
+- 功能：将 goal 文本渲染到图片，并返回固定的安全 user prompt：
+  - `Please describe the text shown in the provided image.`
 
-```python
-from pathlib import Path
-from random import Random
+该攻击仅用于框架联调演示，不包含任何越狱技巧。
 
-from vlm_redteam.attacks.adapter import AttackAdapter
-from vlm_redteam.attacks.registry import AttackRegistry
+## 接入用户现有攻击类（entrypoint + PYTHONPATH）
 
-# 1) 准备你的攻击对象（伪代码）
-output_image_dir = Path("runs") / run_id / "generated_images"
-attack_obj = FigStepAttack(cfg=cfg, output_image_dir=output_image_dir)
+CLI 会从 `enabled_attacks` 读取攻击列表：
+- `demo_figstep`：内置攻击
+- `<module>:<ClassName>`：通过 entrypoint 动态导入用户攻击类
 
-# 2) 包装为适配器并注册
-adapter = AttackAdapter(attack_obj=attack_obj, attack_name="figstep")
-registry = AttackRegistry()
-registry.register("figstep", adapter, weight=1.0)
+示例配置：
 
-# 3) 生成 case_id（可按 run_id + round + 分支索引拼接）
-case_id = f"{run_id}-r{round_idx}-b{branch_idx}-c{cand_idx}"
+```yaml
+enabled_attacks:
+  - demo_figstep
+  - my_attacks.figstep:FigStepAttack
 
-# 4) 传入 params 覆盖 cfg 同名字段（生成后会自动恢复）
-params = {
-    "alpha": 0.7,
-    "steps": 20,
-}
+attack_weights:
+  demo_figstep: 1.0
+  my_attacks.figstep:FigStepAttack: 2.0
 
-attack_name = registry.sample_attacks(k=1, rng=Random(42))[0]
-test_case_dict = registry.get(attack_name).generate(
-    original_prompt=original_prompt,
-    image_path=original_image_path,
-    case_id=case_id,
-    params=params,
-)
-# 返回 dict 至少包含：
-# case_id, jailbreak_prompt, jailbreak_image_path,
-# original_prompt, original_image_path
+attack_init_kwargs:
+  my_attacks.figstep:FigStepAttack:
+    output_image_dir: runs/demo-run-001/custom_images
 ```
 
-说明：
-- `output_image_dir` 由调用方在创建攻击对象时传入，便于和 `run_id` 对齐。
-- `case_id` 建议在调度层统一生成，保证全局唯一且可追溯。
-- `params` 会暂时覆盖 `attack_obj.cfg` 上同名字段，调用完成后恢复原值，避免跨候选污染。
+运行时提供 `PYTHONPATH`：
+
+```bash
+PYTHONPATH=/path/to/your/code python -m vlm_redteam.cli.run --config configs/run.yaml
+```
+
+你的攻击类需提供 `generate_test_case(...)` 接口（可为现有 `BaseAttack/TestCase` 风格），框架会通过 `AttackAdapter` 统一成 dict 流程。
