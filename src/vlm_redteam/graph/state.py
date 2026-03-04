@@ -9,6 +9,16 @@ from typing import Any, Optional, TypedDict
 
 
 @dataclass
+class BeamState:
+    """Legacy placeholder state kept for graph skeleton compatibility."""
+
+    run_id: str = ""
+    round_idx: int = 0
+    notes: list[str] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
 class Branch:
     """A beam-search branch carrying interaction and judging metadata."""
 
@@ -45,7 +55,7 @@ class GraphState(TypedDict):
     """Global workflow state passed across graph nodes."""
 
     run_id: str
-    task: str
+    task: Any
     round_idx: int
     max_rounds: int
     beam_width: int
