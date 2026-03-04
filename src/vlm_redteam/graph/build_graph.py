@@ -15,7 +15,7 @@ def _route_after_select(state: GraphState | BeamState) -> str:
     return "end"
 
 
-def compile_graph():
+def compile_graph(checkpointer=None):
     """Compile graph with SELECT_BEAM conditional loop control."""
 
     graph = StateGraph(GraphState)
@@ -34,4 +34,6 @@ def compile_graph():
         {"expand": "expand", "end": END},
     )
 
+    if checkpointer is not None:
+        return graph.compile(checkpointer=checkpointer)
     return graph.compile()

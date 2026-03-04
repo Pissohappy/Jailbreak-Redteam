@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from langgraph.checkpoint.memory import InMemorySaver
 from pydantic import BaseModel
 
 from vlm_redteam.attacks.adapter import AttackAdapter
@@ -17,6 +18,7 @@ from vlm_redteam.attacks.registry import AttackRegistry, set_default_registry
 from vlm_redteam.graph.build_graph import compile_graph
 from vlm_redteam.graph.state import Branch
 from vlm_redteam.models.vllm_client import VLLMClient
+from vlm_redteam.storage.run_outputs import export_checkpoints, write_run_reports
 
 
 class RunConfig(BaseModel):
@@ -35,6 +37,9 @@ class RunConfig(BaseModel):
     temperature: float = 0.2
     max_tokens: int = 512
     concurrency: int = 16
+    target_concurrency: int | None = None
+    judge_concurrency: int | None = None
+    global_rate_limit_qps: float = 0.0
     enabled_attacks: list[str] = ["demo_figstep"]
     attack_weights: dict[str, float] = {}
     attack_init_kwargs: dict[str, dict[str, Any]] = {}
@@ -155,7 +160,6 @@ def main() -> None:
         "stats": {
             "seed": 0,
             "runs_root": "runs",
-            "attack_registry": registry,
             "target_vllm_base_url": cfg.target_vllm_base_url,
             "target_vllm_model": cfg.target_vllm_model,
             "target_vllm_api_key": cfg.target_vllm_api_key,
@@ -165,11 +169,26 @@ def main() -> None:
             "max_tokens": cfg.max_tokens,
             "enable_vision": cfg.enable_vision,
             "concurrency": cfg.concurrency,
+            "target_concurrency": cfg.target_concurrency or cfg.concurrency,
+            "judge_concurrency": cfg.judge_concurrency or cfg.concurrency,
+            "target_min_interval_sec": (1.0 / cfg.global_rate_limit_qps) if cfg.global_rate_limit_qps > 0 else 0.0,
+            "judge_min_interval_sec": (1.0 / cfg.global_rate_limit_qps) if cfg.global_rate_limit_qps > 0 else 0.0,
+            "total_candidates": 0,
+            "round_topk_scores": [],
         },
     }
 
-    app = compile_graph()
-    final_state = app.invoke(initial_state)
+    checkpointer = InMemorySaver()
+    app = compile_graph(checkpointer=checkpointer)
+    thread_config = {"configurable": {"thread_id": cfg.run_id}}
+    final_state = app.invoke(initial_state, config=thread_config)
+    export_checkpoints(
+        checkpointer=checkpointer,
+        config=thread_config,
+        run_id=cfg.run_id,
+        runs_root="runs",
+    )
+    write_run_reports(final_state, runs_root="runs")
     print("Graph run finished")
     _print_best_summary(final_state)
 

@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import is_dataclass
 from typing import Any
 
+from vlm_redteam.storage.run_outputs import append_state_snapshot
+
 from ..state import BeamState, Branch, Candidate, GraphState, stable_hash
 
 
@@ -39,6 +41,7 @@ def select_beam_node(state: GraphState) -> GraphState:
     task = state.get("task", {})
     goal = str(task.get("goal", "")) if isinstance(task, dict) else str(getattr(task, "goal", ""))
     next_round_idx = int(state.get("round_idx", 0)) + 1
+    parent_map = {str(_get(branch, "branch_id", "")): branch for branch in state.get("beam", [])}
 
     deduped: dict[str, Branch] = {}
     best_success_branch: Branch | None = None
@@ -59,16 +62,21 @@ def select_beam_node(state: GraphState) -> GraphState:
             }
         )
         parent_id = str(_get(candidate, "from_branch_id", "")) or None
+        parent_branch = parent_map.get(parent_id or "")
+        parent_history = list(_get(parent_branch, "history", [])) if parent_branch else []
         branch = Branch(
             branch_id=f"b-{str(_get(candidate, 'cand_id', signature))}",
             parent_id=parent_id,
             round_idx=next_round_idx,
-            history=[
+            history=parent_history
+            + [
                 {
                     "round_idx": next_round_idx,
+                    "branch_id": f"b-{str(_get(candidate, 'cand_id', signature))}",
                     "user_text": f"{jailbreak_prompt}\n\n{goal}".strip(),
                     "image_path": image_path,
                     "target_output": target_output,
+                    "judge_reason": _get(candidate, "judge_reason", ""),
                 }
             ],
             user_text=f"{jailbreak_prompt}\n\n{goal}".strip(),
@@ -108,6 +116,17 @@ def select_beam_node(state: GraphState) -> GraphState:
     state["round_idx"] = next_round_idx
     state["done"] = done
     state["best"] = best
+
+    stats = state.get("stats", {})
+    topk = [float(branch.aggregate_score) for branch in new_beam]
+    stats.setdefault("round_topk_scores", []).append({"round_idx": next_round_idx, "scores": topk})
+    append_state_snapshot(
+        run_id=str(state.get("run_id", "")),
+        runs_root=stats.get("runs_root", "runs"),
+        round_idx=next_round_idx,
+        beam=new_beam,
+        best=best,
+    )
     return state
 
 
