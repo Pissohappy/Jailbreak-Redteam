@@ -1,0 +1,22 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "vlm-redteam"
+version = "0.1.0"
+description = "LangGraph-based VLM red team framework skeleton"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "VLM Redteam Team" }]
+dependencies = [
+  "langgraph",
+  "httpx",
+  "pydantic>=2",
+  "pillow",
+  "rich",
+  "PyYAML",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/vlm_redteam"]
