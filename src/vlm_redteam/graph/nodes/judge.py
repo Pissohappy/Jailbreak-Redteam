@@ -46,6 +46,7 @@ def judge_candidates(state: GraphState) -> GraphState:
         timeout=int(stats.get("judge_timeout", 60)),
         concurrency=int(stats.get("judge_concurrency", 16)),
         min_interval_sec=float(stats.get("judge_min_interval_sec", 0.0)),
+        success_threshold=float(stats.get("judge_success_threshold", 3.0)),
     )
 
     goal = _task_goal(state.get("task"))
