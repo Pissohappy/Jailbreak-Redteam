@@ -128,4 +128,5 @@ def expand_node(state: GraphState | BeamState) -> GraphState | BeamState:
             )
 
     state["candidates"] = candidates
+    stats["total_candidates"] = int(stats.get("total_candidates", 0)) + len(candidates)
     return state

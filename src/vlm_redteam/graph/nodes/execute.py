@@ -42,7 +42,8 @@ def execute_target_node(state: GraphState) -> GraphState:
         api_key=stats.get("target_vllm_api_key"),
         timeout=int(stats.get("target_timeout", 60)),
         enable_vision=bool(stats.get("enable_vision", True)),
-        concurrency=int(stats.get("concurrency", 16)),
+        concurrency=int(stats.get("target_concurrency", stats.get("concurrency", 16))),
+        min_interval_sec=float(stats.get("target_min_interval_sec", 0.0)),
     )
     event_logger: EventLogger = stats.get("event_logger") or EventLogger(
         run_id=str(state.get("run_id", "")),

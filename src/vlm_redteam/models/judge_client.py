@@ -23,12 +23,27 @@ class JudgeClient:
         api_key: str | None = None,
         timeout: int = 60,
         concurrency: int = 16,
+        min_interval_sec: float = 0.0,
     ) -> None:
         self.base_url = (base_url or "").rstrip("/")
         self.model = model
         self.api_key = api_key
         self.timeout = timeout
         self.concurrency = concurrency
+        self.min_interval_sec = max(0.0, float(min_interval_sec))
+        self._rate_limit_lock = asyncio.Lock()
+        self._last_request_ts = 0.0
+
+    async def _throttle(self) -> None:
+        if self.min_interval_sec <= 0:
+            return
+        async with self._rate_limit_lock:
+            now = asyncio.get_running_loop().time()
+            wait_for = self.min_interval_sec - (now - self._last_request_ts)
+            if wait_for > 0:
+                await asyncio.sleep(wait_for)
+                now = asyncio.get_running_loop().time()
+            self._last_request_ts = now
 
     def _headers(self) -> dict[str, str]:
         headers = {"Content-Type": "application/json"}
@@ -107,6 +122,7 @@ class JudgeClient:
         delay = 0.5
         for attempt in range(max_retries + 1):
             try:
+                await self._throttle()
                 resp = await client.post(
                     f"{self.base_url}/v1/chat/completions",
                     headers=self._headers(),
