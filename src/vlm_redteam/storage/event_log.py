@@ -1,12 +1,29 @@
-"""Event log storage placeholder."""
+"""Append-only JSONL event logger."""
 
-from datetime import datetime, UTC
+from __future__ import annotations
+
+import json
+from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 
-def append_event(log_path: str | Path, message: str) -> None:
-    """Append a timestamped event line to a local log file."""
-    ts = datetime.now(UTC).isoformat()
-    Path(log_path).parent.mkdir(parents=True, exist_ok=True)
-    with Path(log_path).open("a", encoding="utf-8") as fp:
-        fp.write(f"{ts}\t{message}\n")
+class EventLogger:
+    """Writes timestamped JSON events for a run."""
+
+    def __init__(self, run_id: str, runs_root: str | Path = "runs") -> None:
+        self.run_id = run_id
+        self.log_path = Path(runs_root) / run_id / "events.jsonl"
+        self.log_path.parent.mkdir(parents=True, exist_ok=True)
+
+    def log_event(self, event_type: str, payload_dict: dict[str, Any]) -> None:
+        """Append one JSON event to the run log."""
+
+        record = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "run_id": self.run_id,
+            "event_type": event_type,
+            "payload": payload_dict,
+        }
+        with self.log_path.open("a", encoding="utf-8") as fp:
+            fp.write(json.dumps(record, ensure_ascii=False) + "\n")
