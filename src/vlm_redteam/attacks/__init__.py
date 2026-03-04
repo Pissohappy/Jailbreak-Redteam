@@ -1,0 +1,1 @@
+"""Attack adapters and registry."""
