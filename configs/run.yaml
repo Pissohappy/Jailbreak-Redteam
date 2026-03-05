@@ -6,6 +6,8 @@ target_vllm_api_key: "dummy"
 
 judge_base_url: "http://localhost:8005"
 judge_model: "gpt-oss-120b"
+# Optional: "multidim" (default) or "strongreject"
+judge_mode: "multidim"
 
 beam_width: 2
 per_branch_candidates: 2

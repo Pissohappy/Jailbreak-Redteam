@@ -9,6 +9,8 @@ target_vllm_api_key: "dummy"
 
 judge_base_url: "http://localhost:8008"
 judge_model: "qwen3-vl-8b"
+# Optional: "multidim" (default) or "strongreject"
+judge_mode: "multidim"
 
 beam_width: 2
 per_branch_candidates: 2

@@ -42,6 +42,7 @@ def judge_candidates(state: GraphState) -> GraphState:
     judge = JudgeClient(
         base_url=stats.get("judge_base_url", ""),
         model=stats.get("judge_model", "judge-model"),
+        mode=str(stats.get("judge_mode", "multidim")),
         api_key=stats.get("judge_api_key"),
         timeout=int(stats.get("judge_timeout", 60)),
         concurrency=int(stats.get("judge_concurrency", 16)),

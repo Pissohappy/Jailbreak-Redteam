@@ -33,6 +33,7 @@ class RunConfig(BaseModel):
     target_vllm_api_key: str | None = None
     judge_base_url: str | None = None
     judge_model: str = "judge-model"
+    judge_mode: str = "multidim"  # "multidim" (default) or "strongreject"
     beam_width: int
     per_branch_candidates: int
     max_rounds: int
@@ -236,6 +237,7 @@ def main() -> None:
             "target_vllm_api_key": cfg.target_vllm_api_key,
             "judge_base_url": cfg.judge_base_url or "",
             "judge_model": cfg.judge_model,
+            "judge_mode": cfg.judge_mode,
             "temperature": cfg.temperature,
             "max_tokens": cfg.max_tokens,
             "enable_vision": cfg.enable_vision,
