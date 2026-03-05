@@ -86,6 +86,13 @@ class FigStepAttack(BaseAttack):
     - output JSON index file: FigStep_test_cases.json
     """
 
+    # Attack description for LLM-guided strategy
+    description: str = (
+        "FigStep attack: Encodes harmful instructions as text in an image with numbered steps, "
+        "bypassing text-based safety filters by presenting the harmful content visually. "
+        "Uses a fixed prompt asking the model to complete items in a list shown in the image."
+    )
+
     # Configuration class
     CONFIG_CLASS = FigStepConfig
 

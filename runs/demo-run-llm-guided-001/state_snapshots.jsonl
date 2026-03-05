@@ -1,0 +1,9 @@
+{"round_idx": 1, "beam_scores": [1.0, 1.0], "best": {"branch_id": null, "aggregate_score": null}}
+{"round_idx": 2, "beam_scores": [4.0, 1.0], "best": {"branch_id": "b-c-435caf070c4a2191", "aggregate_score": 4.0}}
+{"round_idx": 1, "beam_scores": [1.0, 1.0], "best": {"branch_id": null, "aggregate_score": null}}
+{"round_idx": 2, "beam_scores": [1.0, 1.0], "best": {"branch_id": null, "aggregate_score": null}}
+{"round_idx": 3, "beam_scores": [4.0, 4.0], "best": {"branch_id": "b-c-93e4d28ff07545b3", "aggregate_score": 4.0}}
+{"round_idx": 1, "beam_scores": [4.0, 1.0], "best": {"branch_id": "b-c-82387e0ef155cc2b", "aggregate_score": 4.0}}
+{"round_idx": 1, "beam_scores": [1.0, 1.0], "best": {"branch_id": null, "aggregate_score": null}}
+{"round_idx": 2, "beam_scores": [1.0, 1.0], "best": {"branch_id": null, "aggregate_score": null}}
+{"round_idx": 3, "beam_scores": [4.0, 4.0], "best": {"branch_id": "b-c-f1deafdc232b3fbc", "aggregate_score": 4.0}}

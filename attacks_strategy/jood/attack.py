@@ -86,6 +86,15 @@ def _choose_mix_func(aug: str):
 
 
 class JOODAttack(BaseAttack):
+    """JOOD (Just One Image) attack: Mixes harmful image with harmless image using augmentation."""
+
+    # Attack description for LLM-guided strategy
+    description: str = (
+        "JOOD attack: Mixes the harmful target image with a harmless image using techniques like "
+        "mixup or cutmix, making the harmful content less obvious while preserving information. "
+        "Includes a prefix instruction to guide the model's interpretation of the mixed image."
+    )
+
     CONFIG_CLASS = JOODConfig
 
     def generate_test_case(

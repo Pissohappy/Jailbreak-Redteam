@@ -105,6 +105,9 @@ class BaseAttack(BaseComponent, ABC):
 
     # Standard Metadata Keys
     META_KEY_ATTACK_METHOD = "attack_method"
+
+    # Attack description - subclasses should override this
+    description: str = "Base attack method. Subclasses should provide their own description."
     META_KEY_ORIGINAL_PROMPT = "original_prompt"
     META_KEY_JAILBREAK_PROMPT = "jailbreak_prompt"
     META_KEY_JAILBREAK_IMAGE = "jailbreak_image_path"

@@ -110,6 +110,13 @@ class ArttextFigStepConfig:
 class ArttextFigStepAttack(BaseAttack):
     """Style-driven FigStep variant registered as `arttextfigstep`."""
 
+    # Attack description for LLM-guided strategy
+    description: str = (
+        "ArttextFigStep attack: An enhanced FigStep variant that generates stylized text images "
+        "with artistic effects (gradients, glows, shadows) on Stable Diffusion backgrounds. "
+        "More visually appealing and harder for safety filters to detect."
+    )
+
     CONFIG_CLASS = ArttextFigStepConfig
 
     def __init__(self, config=None, output_image_dir: Optional[str] = None):

@@ -17,6 +17,7 @@ from pydantic import BaseModel
 from vlm_redteam.attacks.adapter import AttackAdapter
 from vlm_redteam.attacks.registry import AttackRegistry, set_default_registry
 from vlm_redteam.graph.build_graph import compile_graph
+
 from vlm_redteam.graph.state import Branch
 from vlm_redteam.models.vllm_client import VLLMClient
 from vlm_redteam.storage.run_outputs import export_checkpoints, write_run_reports
@@ -47,6 +48,9 @@ class RunConfig(BaseModel):
     attack_init_kwargs: dict[str, dict[str, Any]] = {}
     auto_load_strategy_configs: bool = True
     strategy_configs_dir: str = "configs/attacks"
+    # Expand strategy configuration
+    expand_strategy: str = "random_sampling"  # "random_sampling" or "llm_guided"
+    llm_guide: dict[str, Any] | None = None  # LLM-guided strategy settings
 
 
 def load_config(path: Path) -> RunConfig:
@@ -242,6 +246,9 @@ def main() -> None:
             "judge_min_interval_sec": (1.0 / cfg.global_rate_limit_qps) if cfg.global_rate_limit_qps > 0 else 0.0,
             "total_candidates": 0,
             "round_topk_scores": [],
+            # Expand strategy config (not the object itself - must be serializable)
+            "expand_strategy_name": cfg.expand_strategy,
+            "llm_guide_config": dict(cfg.llm_guide) if cfg.llm_guide else None,
         },
     }
 
