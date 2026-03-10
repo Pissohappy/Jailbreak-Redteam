@@ -213,6 +213,7 @@ class MultimodalShuffleAttack(BaseAttack):
                 temperature=self.cfg.llm_temperature,
                 max_tokens=self.cfg.llm_max_tokens,
             )
+            print(f"LLM response for description generation: {response}")
 
             # Parse JSON array from response
             response = response.strip()
@@ -233,7 +234,7 @@ class MultimodalShuffleAttack(BaseAttack):
             return descriptions
 
         except Exception as e:
-            self.logger.warning(f"LLM description generation failed: {e}. Using fallback descriptions.")
+            self.logger.warning(f"LLM description generation failed: {e}. Using fallback descriptions. now we at MultimodalShuffleAttack._generate_descriptions")
             return [f"Region {i + 1}" for i in range(num_descriptions)]
 
     def _shuffle_pairings(

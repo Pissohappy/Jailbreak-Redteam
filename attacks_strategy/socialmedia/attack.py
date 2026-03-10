@@ -303,6 +303,7 @@ class SlackAttack(BaseAttack):
                 temperature=self.cfg.llm_temperature,
                 max_tokens=self.cfg.llm_max_tokens,
             )
+            print(f"LLM response for Slack message generation: {response}")
 
             # Parse JSON from response
             response = response.strip()
@@ -333,7 +334,7 @@ class SlackAttack(BaseAttack):
             return messages
 
         except Exception as e:
-            self.logger.warning(f"LLM message generation failed: {e}. Using fallback content.")
+            self.logger.warning(f"LLM message generation failed: {e}. Using fallback content. now we at socialmedia.SlackAttack._generate_slack_messages")
             # Fallback: create simple messages with the prompt
             return self._create_fallback_messages(harmful_prompt)
 

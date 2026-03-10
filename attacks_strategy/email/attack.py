@@ -277,7 +277,7 @@ class EmailThreadAttack(BaseAttack):
             }
 
         except Exception as e:
-            self.logger.warning(f"LLM email generation failed: {e}. Using fallback content.")
+            self.logger.warning(f"LLM email generation failed: {e}. Using fallback content. now we at EmailThreadAttack._generate_email_content")
             # Fallback: create simple email with the prompt
             return {
                 "from_": "sender@example.com",

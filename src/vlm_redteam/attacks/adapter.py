@@ -71,17 +71,17 @@ class AttackAdapter:
             raw = dict(test_case)
         else:
             raw = {
-                "case_id": getattr(test_case, "case_id"),
-                "jailbreak_prompt": getattr(test_case, "jailbreak_prompt"),
-                "jailbreak_image_path": getattr(test_case, "jailbreak_image_path"),
+                "case_id": getattr(test_case, "test_case_id"),
+                "jailbreak_prompt": getattr(test_case, "prompt"),
+                "jailbreak_image_path": getattr(test_case, "image_path"),
                 "original_prompt": getattr(test_case, "original_prompt"),
                 "original_image_path": getattr(test_case, "original_image_path"),
             }
 
         return {
-            "case_id": raw.get("case_id"),
-            "jailbreak_prompt": raw.get("jailbreak_prompt"),
-            "jailbreak_image_path": raw.get("jailbreak_image_path"),
+            "case_id": raw.get("test_case_id"),
+            "jailbreak_prompt": raw.get("prompt"),
+            "jailbreak_image_path": raw.get("image_path"),
             "original_prompt": raw.get("original_prompt"),
             "original_image_path": raw.get("original_image_path"),
         }

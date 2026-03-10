@@ -73,13 +73,13 @@ def select_beam_node(state: GraphState) -> GraphState:
                 {
                     "round_idx": next_round_idx,
                     "branch_id": f"b-{str(_get(candidate, 'cand_id', signature))}",
-                    "user_text": f"{jailbreak_prompt}\n\n{goal}".strip(),
+                    "user_text": f"{jailbreak_prompt}".strip(),
                     "image_path": image_path,
                     "target_output": target_output,
                     "judge_reason": _get(candidate, "judge_reason", ""),
                 }
             ],
-            user_text=f"{jailbreak_prompt}\n\n{goal}".strip(),
+            user_text=f"{jailbreak_prompt}".strip(),
             user_image=image_path,
             target_output=target_output,
             judge_success=_candidate_success(candidate),

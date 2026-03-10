@@ -54,7 +54,7 @@ def execute_target_node(state: GraphState) -> GraphState:
     cand_ids: list[str] = []
     for cand in candidates:
         test_case = _get_candidate_attr(cand, "test_case", {}) or {}
-        user_text = f"{test_case.get('jailbreak_prompt', '')}\n\n{goal}"
+        user_text = test_case.get('jailbreak_prompt', goal)
         image_path = test_case.get("jailbreak_image_path")
         batch_inputs.append(
             {

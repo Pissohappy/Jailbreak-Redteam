@@ -232,6 +232,7 @@ class FlowchartAttack(BaseAttack):
                 temperature=self.cfg.llm_temperature,
                 max_tokens=self.cfg.llm_max_tokens,
             )
+            print(f"LLM response for step flowchart generation: {response}")
 
             # Parse steps from response
             steps = []
@@ -254,7 +255,7 @@ class FlowchartAttack(BaseAttack):
             return steps
 
         except Exception as e:
-            self.logger.warning(f"LLM step generation failed: {e}. Using fallback steps.")
+            self.logger.warning(f"LLM step generation failed: {e}. Using fallback steps. now we at FlowchartAttack._generate_steps")
             # Fallback: create generic steps
             return [
                 f"Step {i + 1}: Analyze the requirements for: {harmful_prompt[:30]}..."
