@@ -2,6 +2,13 @@
 
 一个可运行的 LangGraph 多轮 beam-search VLM redteam demo。
 
+## 核心特性
+
+- **真正的多轮对话**: 完整对话历史传递，目标模型能够理解之前的交互上下文
+- **多模态历史支持**: 支持在多轮对话中传递图片历史
+- **动态攻击策略**: 支持根据历史响应智能选择攻击方式（LLM-guided）
+- **Beam Search**: 支持多分支并行探索，保留最优攻击路径
+
 ## Requirements
 
 - Python 3.11+
@@ -118,14 +125,14 @@ attack_init_kwargs:
 ```
 
 实践建议：
-- 建一个“配置转换脚本”（如 `scripts/merge_attack_cfgs.py`），把 `configs/attacks/*.yaml` 的 `parameters` 自动转成 `attack_init_kwargs`，避免手工复制。
+- 建一个"配置转换脚本"（如 `scripts/merge_attack_cfgs.py`），把 `configs/attacks/*.yaml` 的 `parameters` 自动转成 `attack_init_kwargs`，避免手工复制。
 - 这样你就能继续维护独立攻击配置文件，同时又能无缝接入当前 CLI。
 
-### 3) expand 如何“按预设策略”选攻击
+### 3) expand 如何"按预设策略"选攻击
 
 当前 expand 节点会在每个分支里，按 `attack_weights` 对已注册攻击做带权采样（可重复），采样数由 `per_branch_candidates` 决定。
 
-因此如果你想“按预设策略”运行，通常有两种方式：
+因此如果你想"按预设策略"运行，通常有两种方式：
 - **静态策略**：直接调权重（例如 figstep:3, qr:1）；
 - **分阶段策略**：每一轮/每一次 run 使用不同的 `run.yaml`（例如 round1 先高权重文字攻击，round2 再提高视觉扰动攻击权重）。
 
@@ -136,3 +143,175 @@ PYTHONPATH=. python -m vlm_redteam.cli.run --config configs/run.yaml --goal "you
 ```
 
 如果某些攻击依赖额外环境（如 `torch`, `numpy`, `core` 包等），请先在当前环境补齐依赖，否则动态导入会失败。
+
+## 多轮对话支持
+
+框架已改造为**真正的多轮对话框架**，每次请求都会携带完整对话历史。
+
+### 工作原理
+
+1. **历史传递**: 每轮攻击时，目标模型会收到所有之前的 prompt 和 response
+2. **多模态历史**: 历史消息中的图片会以 base64 格式嵌入请求
+3. **Judge 评估**: Judge 仅评估当前轮次的攻击效果，不影响历史传递
+
+### 数据流
+
+```
+Round 1:
+  User: "攻击 prompt 1" + image1
+  Target: "响应 1"
+
+Round 2:
+  History: [User: "攻击 prompt 1" + image1, Assistant: "响应 1"]
+  User: "攻击 prompt 2" + image2
+  Target: "响应 2"
+
+Round 3:
+  History: [User: "攻击 prompt 1" + image1, Assistant: "响应 1",
+            User: "攻击 prompt 2" + image2, Assistant: "响应 2"]
+  User: "攻击 prompt 3" + image3
+  Target: "响应 3"
+```
+
+### Branch.history 结构
+
+每个 Branch 维护一个 `history` 列表，记录所有历史交互：
+
+```python
+history = [
+    {
+        "round_idx": 1,
+        "user_text": "攻击 prompt",
+        "image_path": "/path/to/image.png",  # 可选
+        "target_output": "目标模型的响应",
+    },
+    # ... 更多历史记录
+]
+```
+
+### VLLMClient API
+
+`VLLMClient` 支持多轮对话：
+
+```python
+from vlm_redteam.models.vllm_client import VLLMClient
+
+client = VLLMClient(base_url="http://localhost:8000", model="model-name")
+
+# 单轮调用（无历史）
+response = client.generate_one(
+    user_text="Hello",
+    image_path=None,
+    temperature=0.2,
+    max_tokens=512,
+)
+
+# 多轮调用（带历史）
+history = [
+    {"user_text": "Hi", "image_path": None, "target_output": "Hello!"},
+    {"user_text": "What is 2+2?", "image_path": None, "target_output": "4"},
+]
+response = client.generate_one(
+    user_text="And 3+3?",
+    image_path=None,
+    temperature=0.2,
+    max_tokens=512,
+    history=history,  # 传入历史
+)
+
+# 批量调用也支持历史
+outputs = client.generate_batch([
+    {"user_text": "Q1", "image_path": None, "temperature": 0.2, "max_tokens": 512, "history": history1},
+    {"user_text": "Q2", "image_path": None, "temperature": 0.2, "max_tokens": 512, "history": history2},
+])
+```
+
+### 辅助函数
+
+使用 `build_conversation_history()` 从 Branch.history 构建标准对话格式：
+
+```python
+from vlm_redteam.graph.state import build_conversation_history
+
+messages = build_conversation_history(branch.history)
+# 返回 OpenAI 格式的 messages 列表
+```
+
+## 架构说明
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     LangGraph Workflow                       │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│  ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌────────┐ │
+│  │  Expand  │───▶│  Execute │───▶│  Judge   │───▶│ Select │ │
+│  │ (生成攻击)│    │(调用目标) │    │ (评估)   │    │(更新beam)│ │
+│  └──────────┘    └──────────┘    └──────────┘    └────────┘ │
+│       │                                                │     │
+│       │              ┌─────────────────────────────────┘     │
+│       │              │                                       │
+│       │              ▼                                       │
+│       │        ┌──────────┐                                  │
+│       └───────▶│  done?   │───▶ 结束或继续下一轮              │
+│                └──────────┘                                  │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+
+关键节点:
+- Expand: 根据 attack_weights 采样攻击，生成候选 test case
+- Execute: 调用目标模型（带完整历史），获取响应
+- Judge: 评估当前轮次的攻击效果
+- Select: 更新 beam，记录历史，决定是否终止
+```
+
+## 扩展开发
+
+### 添加新攻击
+
+1. 创建攻击类，实现 `generate_test_case()` 方法：
+
+```python
+class MyAttack:
+    def generate_test_case(self, original_prompt: str, image_path: str | None, **kwargs) -> dict:
+        return {
+            "jailbreak_prompt": "modified prompt",
+            "jailbreak_image_path": "/path/to/image.png",  # 可选
+        }
+```
+
+2. 注册到配置文件：
+
+```yaml
+enabled_attacks:
+  - my_module:MyAttack
+
+attack_weights:
+  my_module:MyAttack: 1.0
+```
+
+### 自定义 Expand 策略
+
+实现 `ExpandStrategy` 接口：
+
+```python
+from vlm_redteam.graph.nodes.expand_strategies.base import ExpandStrategy, ExpandContext
+
+class MyStrategy(ExpandStrategy):
+    name = "my_strategy"
+
+    def select_attacks(self, ctx: ExpandContext) -> list[tuple[str, dict]]:
+        # ctx.branch.history 可用于分析历史响应
+        # ctx.registry.list_attacks() 获取可用攻击
+        # 返回 [(attack_name, params), ...]
+        pass
+```
+
+配置使用：
+
+```yaml
+expand_strategy: my_strategy
+llm_guide_config:
+  base_url: http://localhost:8000
+  model: guide-model
+```
