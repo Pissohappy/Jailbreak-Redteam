@@ -1,0 +1,18 @@
+name: "multimodal_shuffle"
+
+parameters:
+  collage_mode: "grid"
+  num_sub_images: 4
+  sub_image_source: "same_image"
+  description_source: "llm_generated"
+
+  # LLM settings
+  llm_model_name: "gpt-4o-mini"
+  llm_base_url: "https://api.whatai.cc/v1"
+  llm_api_key: "sk-WE6FQhZoEr4nBz4KTqHuzAYixq6pQG07VZbRhcHaWdGtMTs2"
+  llm_temperature: 0.7
+  llm_max_tokens: 512
+
+  show_labels: true
+  label_position: "bottom"
+  shuffle_strategy: "random"

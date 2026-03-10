@@ -1,0 +1,8 @@
+name: "jigsaw"
+
+parameters:
+  grid_rows: 3
+  grid_cols: 3
+  scramble_mode: "random"
+  gap_size: 2
+  show_numbers: false

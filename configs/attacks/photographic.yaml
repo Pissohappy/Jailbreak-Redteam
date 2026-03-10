@@ -1,0 +1,18 @@
+name: "photographic"
+
+parameters:
+  perturbation_type: "combined"
+
+  # Blur settings
+  blur_radius: 2.0
+
+  # Noise settings
+  noise_intensity: 0.1
+
+  # Color shift settings
+  hue_shift: 0.1
+  saturation_factor: 1.5
+
+  # Contrast/brightness
+  contrast_factor: 1.2
+  brightness_factor: 1.1

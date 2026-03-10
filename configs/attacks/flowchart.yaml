@@ -1,0 +1,30 @@
+name: "flowchart"
+
+parameters:
+  # Layout type: "vertical", "horizontal", "s_shaped"
+  layout_type: "vertical"
+
+  # Image dimensions
+  image_width: 1024
+  image_height: 1024
+
+  # Font configuration
+  font_path: "attacks/Arial Font/ARIAL.TTF"
+  font_size: 28
+
+  # Flowchart style
+  box_fill_color: "#E3F2FD"
+  box_border_color: "#1976D2"
+  arrow_color: "#424242"
+  bg_color: "#FFFFFF"
+  box_width: 240
+  box_height: 70
+  box_spacing: 40
+
+  # LLM configuration (for step generation)
+  llm_model_name: "gpt-4o-mini"
+  llm_base_url: "https://api.whatai.cc"  # Optional: override default
+  llm_api_key: "sk-WE6FQhZoEr4nBz4KTqHuzAYixq6pQG07VZbRhcHaWdGtMTs2"   # Optional: override default
+  llm_temperature: 0.7
+  llm_max_tokens: 1024
+  num_steps: 5
