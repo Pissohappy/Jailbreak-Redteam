@@ -82,3 +82,44 @@ def make_signature(jailbreak_prompt: str, image_path: Optional[str]) -> str:
         "image_path": image_path,
     }
     return stable_hash(payload)
+
+
+def build_conversation_history(history: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """
+    Build OpenAI-format conversation history from Branch.history.
+
+    Args:
+        history: List of history entries from a Branch, each containing:
+            - user_text: The user's prompt in that turn
+            - image_path: Image path for that turn (optional)
+            - target_output: The assistant's response
+
+    Returns:
+        List of OpenAI-format message dicts for use with VLLMClient.
+    """
+    messages: list[dict[str, Any]] = []
+    for entry in history:
+        user_text = entry.get("user_text", "")
+        image_path = entry.get("image_path")
+        target_output = entry.get("target_output")
+
+        # Build user message
+        if image_path:
+            messages.append({
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": user_text},
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": image_path},
+                    },
+                ],
+            })
+        else:
+            messages.append({"role": "user", "content": user_text})
+
+        # Add assistant response if present
+        if target_output:
+            messages.append({"role": "assistant", "content": target_output})
+
+    return messages

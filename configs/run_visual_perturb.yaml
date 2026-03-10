@@ -1,7 +1,7 @@
 # Run configuration for visual perturbation attacks
 # Test all specified attack strategies on sample50 dataset
 
-run_id: visual-perturb-run-006
+run_id: visual-perturb-run-007
 
 target_vllm_base_url: "http://localhost:8008"
 target_vllm_model: "qwen3-vl-8b"
@@ -9,7 +9,8 @@ target_vllm_api_key: "dummy"
 
 judge_base_url: "http://localhost:8008"
 judge_model: "qwen3-vl-8b"
-judge_mode: "multidim"
+# judge_mode: "multidim"
+judge_mode: "strongreject"
 
 beam_width: 2
 per_branch_candidates: 3

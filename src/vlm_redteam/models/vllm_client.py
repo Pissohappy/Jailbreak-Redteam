@@ -84,6 +84,78 @@ class VLLMClient:
             ]
         return [{"role": "user", "content": user_text}]
 
+    def build_messages_with_history(
+        self,
+        user_text: str,
+        image_path: str | None,
+        history: list[dict[str, Any]] | None = None,
+    ) -> list[dict[str, Any]]:
+        """
+        Construct OpenAI-compatible messages payload with full conversation history.
+
+        Args:
+            user_text: Current user prompt.
+            image_path: Current image path (optional).
+            history: List of historical messages, each containing:
+                - user_text: The user's prompt in that turn
+                - image_path: Image path for that turn (optional)
+                - target_output: The assistant's response
+
+        Returns:
+            OpenAI-format messages list with all conversation turns.
+        """
+        messages: list[dict[str, Any]] = []
+
+        if history:
+            for entry in history:
+                # Build user message from history
+                hist_user_text = entry.get("user_text", "")
+                hist_image_path = entry.get("image_path")
+
+                if self.enable_vision and hist_image_path and Path(hist_image_path).exists():
+                    messages.append(
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": hist_user_text},
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": self._image_to_data_url(hist_image_path),
+                                    },
+                                },
+                            ],
+                        }
+                    )
+                else:
+                    messages.append({"role": "user", "content": hist_user_text})
+
+                # Add assistant response
+                target_output = entry.get("target_output")
+                if target_output:
+                    messages.append({"role": "assistant", "content": target_output})
+
+        # Add current user message
+        if self.enable_vision and image_path and Path(image_path).exists():
+            messages.append(
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": user_text},
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": self._image_to_data_url(image_path),
+                            },
+                        },
+                    ],
+                }
+            )
+        else:
+            messages.append({"role": "user", "content": user_text})
+
+        return messages
+
     async def _request_with_retry(
         self,
         client: Any,
@@ -124,15 +196,24 @@ class VLLMClient:
         image_path: str | None,
         temperature: float,
         max_tokens: int,
+        history: list[dict[str, Any]] | None = None,
     ) -> str:
         if not self.base_url:
             return f"[dummy vllm output] {user_text[:64]}"
         if httpx is None:
             raise RuntimeError("httpx is required when vLLM base_url is set")
 
+        # Use history-aware message builder if history is provided
+        if history:
+            messages = self.build_messages_with_history(
+                user_text=user_text, image_path=image_path, history=history
+            )
+        else:
+            messages = self.build_messages(user_text=user_text, image_path=image_path)
+
         payload = {
             "model": self.model,
-            "messages": self.build_messages(user_text=user_text, image_path=image_path),
+            "messages": messages,
             "temperature": temperature,
             "max_tokens": max_tokens,
         }
@@ -145,8 +226,9 @@ class VLLMClient:
         image_path: str | None,
         temperature: float,
         max_tokens: int,
+        history: list[dict[str, Any]] | None = None,
     ) -> str:
-        """Generate one model response."""
+        """Generate one model response with optional conversation history."""
 
         return asyncio.run(
             self._agenerate_one(
@@ -154,6 +236,7 @@ class VLLMClient:
                 image_path=image_path,
                 temperature=temperature,
                 max_tokens=max_tokens,
+                history=history,
             )
         )
 
@@ -170,12 +253,22 @@ class VLLMClient:
 
             async def _run_one(idx: int, item: dict[str, Any]) -> None:
                 async with sem:
-                    payload = {
-                        "model": self.model,
-                        "messages": self.build_messages(
+                    # Use history-aware message builder if history is provided
+                    history = item.get("history")
+                    if history:
+                        messages = self.build_messages_with_history(
                             user_text=item["user_text"],
                             image_path=item.get("image_path"),
-                        ),
+                            history=history,
+                        )
+                    else:
+                        messages = self.build_messages(
+                            user_text=item["user_text"],
+                            image_path=item.get("image_path"),
+                        )
+                    payload = {
+                        "model": self.model,
+                        "messages": messages,
                         "temperature": item["temperature"],
                         "max_tokens": item["max_tokens"],
                     }
@@ -186,7 +279,11 @@ class VLLMClient:
         return [r if r is not None else "" for r in results]
 
     def generate_batch(self, list_of_inputs: list[dict[str, Any]]) -> list[str]:
-        """Batch generation with async concurrency control and retries."""
+        """Batch generation with async concurrency control and retries.
+
+        Each input dict can optionally include a 'history' key with a list of
+        historical messages for multi-turn conversation support.
+        """
 
         return asyncio.run(self._agenerate_batch(list_of_inputs))
 

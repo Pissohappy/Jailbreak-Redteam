@@ -50,18 +50,37 @@ def execute_target_node(state: GraphState) -> GraphState:
         runs_root=stats.get("runs_root", "runs"),
     )
 
+    # Build parent branch map for history lookup
+    beam = state.get("beam", [])
+    parent_map = {}
+    for branch in beam:
+        branch_id = _get_candidate_attr(branch, "branch_id", "")
+        if branch_id:
+            parent_map[branch_id] = branch
+
     batch_inputs: list[dict[str, Any]] = []
     cand_ids: list[str] = []
     for cand in candidates:
         test_case = _get_candidate_attr(cand, "test_case", {}) or {}
         user_text = test_case.get('jailbreak_prompt', goal)
         image_path = test_case.get("jailbreak_image_path")
+
+        # Get history from parent branch for multi-turn support
+        from_branch_id = _get_candidate_attr(cand, "from_branch_id", "")
+        parent_branch = parent_map.get(from_branch_id)
+        history = None
+        if parent_branch:
+            parent_history = _get_candidate_attr(parent_branch, "history", [])
+            if parent_history:
+                history = parent_history
+
         batch_inputs.append(
             {
                 "user_text": user_text,
                 "image_path": image_path,
                 "temperature": float(stats.get("temperature", 0.2)),
                 "max_tokens": int(stats.get("max_tokens", 512)),
+                "history": history,  # Include history for multi-turn
             }
         )
         cand_ids.append(str(_get_candidate_attr(cand, "cand_id", "")))
