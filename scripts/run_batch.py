@@ -12,6 +12,7 @@ from datetime import datetime
 
 # Add project to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from vlm_redteam.cli.run import load_config, _build_registry, set_default_registry
 from vlm_redteam.graph.build_graph import compile_graph

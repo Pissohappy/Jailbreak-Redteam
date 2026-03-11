@@ -1,7 +1,7 @@
 # Run configuration for visual perturbation attacks
-# Test all specified attack strategies on sample50 dataset
+# Sample50 dataset with absolute image paths
 
-run_id: visual-perturb-run-011
+run_id: visual-perturb-sample50-001
 
 target_vllm_base_url: "http://localhost:8008"
 target_vllm_model: "qwen3-vl-8b"
@@ -68,42 +68,46 @@ attack_weights:
 
 attack_init_kwargs:
   attacks_strategy.email.attack:EmailThreadAttack:
-    output_image_dir: runs/visual-perturb-run-001/generated_images
+    output_image_dir: runs/visual-perturb-sample50-001/generated_images
+    config:
+      llm_base_url: "https://api.whatai.cc"
+      llm_api_key: "sk-WE6FQhZoEr4nBz4KTqHuzAYixq6pQG07VZbRhcHaWdGtMTs2"
+      llm_model_name: "gpt-4o-mini"
   # attacks_strategy.cs_dj.attack:CSDJAttack:
-  #   output_image_dir: runs/visual-perturb-run-001/generated_images
+  #   output_image_dir: runs/visual-perturb-sample50-001/generated_images
   attacks_strategy.figstep.attack:FigStepAttack:
-    output_image_dir: runs/visual-perturb-run-001/generated_images
+    output_image_dir: runs/visual-perturb-sample50-001/generated_images
     config:
       font_path: /mnt/disk1/szchen/VLMBenchmark/repo/Jailbreak-Redteam/attacks_strategy/Arial Font/ARIAL.TTF
   attacks_strategy.flowchart.attack:FlowchartAttack:
-    output_image_dir: runs/visual-perturb-run-001/generated_images
+    output_image_dir: runs/visual-perturb-sample50-001/generated_images
     config:
       llm_base_url: "https://api.whatai.cc"
       llm_api_key: "sk-WE6FQhZoEr4nBz4KTqHuzAYixq6pQG07VZbRhcHaWdGtMTs2"
       llm_model_name: "gpt-4o-mini"
   attacks_strategy.visual_perturb.jigsaw:JigsawScrambleAttack:
-    output_image_dir: runs/visual-perturb-run-001/generated_images
+    output_image_dir: runs/visual-perturb-sample50-001/generated_images
   attacks_strategy.visual_perturb.multimodal_shuffle:MultimodalShuffleAttack:
-    output_image_dir: runs/visual-perturb-run-001/generated_images
+    output_image_dir: runs/visual-perturb-sample50-001/generated_images
     config:
       llm_base_url: "https://api.whatai.cc"
       llm_api_key: "sk-WE6FQhZoEr4nBz4KTqHuzAYixq6pQG07VZbRhcHaWdGtMTs2"
       llm_model_name: "gpt-4o-mini"
   attacks_strategy.visual_perturb.photographic:PhotographicAttack:
-    output_image_dir: runs/visual-perturb-run-001/generated_images
+    output_image_dir: runs/visual-perturb-sample50-001/generated_images
   attacks_strategy.socialmedia.attack:SlackAttack:
-    output_image_dir: runs/visual-perturb-run-001/generated_images
+    output_image_dir: runs/visual-perturb-sample50-001/generated_images
     config:
       llm_base_url: "https://api.whatai.cc"
       llm_api_key: "sk-WE6FQhZoEr4nBz4KTqHuzAYixq6pQG07VZbRhcHaWdGtMTs2"
       llm_model_name: "gpt-4o-mini"
   attacks_strategy.jood.attack:JOODAttack:
-    output_image_dir: runs/visual-perturb-run-001/generated_images
+    output_image_dir: runs/visual-perturb-sample50-001/generated_images
     config:
       harmless_image_path: /mnt/disk1/szchen/VLMBenchmark/repo/OmniSafeBench-MM/dataset/apple.png
       aug: mixup
       lam: 0.5
   attacks_strategy.mml.attack:MMLAttack:
-    output_image_dir: runs/visual-perturb-run-001/generated_images
+    output_image_dir: runs/visual-perturb-sample50-001/generated_images
     config:
       font_path: /mnt/disk1/szchen/VLMBenchmark/repo/Jailbreak-Redteam/attacks_strategy/Arial Font/ARIAL.TTF
