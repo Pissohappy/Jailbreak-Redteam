@@ -63,3 +63,22 @@ def test_generate_batch_keeps_order(monkeypatch) -> None:
         ]
     )
     assert outputs == ["a-resp", "b-resp"]
+
+
+def test_generate_one_with_messages_uses_provided_messages(monkeypatch) -> None:
+    client = VLLMClient(base_url="http://localhost:8000", model="m", enable_vision=False)
+
+    async def fake_request_with_retry(*, client, payload, max_retries=3):
+        return payload["messages"][0]["content"] + "-" + payload["messages"][1]["content"]
+
+    monkeypatch.setattr(client, "_request_with_retry", fake_request_with_retry)
+
+    output = client.generate_one_with_messages(
+        messages=[
+            {"role": "system", "content": "sys"},
+            {"role": "user", "content": "usr"},
+        ],
+        temperature=0.1,
+        max_tokens=16,
+    )
+    assert output == "sys-usr"
