@@ -220,6 +220,33 @@ class VLLMClient:
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             return await self._request_with_retry(client=client, payload=payload)
 
+    async def _agenerate_one_with_messages(
+        self,
+        messages: list[dict[str, Any]],
+        temperature: float,
+        max_tokens: int,
+    ) -> str:
+        """Generate one model response from a fully constructed messages list."""
+
+        if not self.base_url:
+            for message in reversed(messages):
+                if message.get("role") == "user":
+                    content = message.get("content", "")
+                    if isinstance(content, str):
+                        return f"[dummy vllm output] {content[:64]}"
+            return "[dummy vllm output]"
+        if httpx is None:
+            raise RuntimeError("httpx is required when vLLM base_url is set")
+
+        payload = {
+            "model": self.model,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+        }
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            return await self._request_with_retry(client=client, payload=payload)
+
     def generate_one(
         self,
         user_text: str,
@@ -237,6 +264,22 @@ class VLLMClient:
                 temperature=temperature,
                 max_tokens=max_tokens,
                 history=history,
+            )
+        )
+
+    def generate_one_with_messages(
+        self,
+        messages: list[dict[str, Any]],
+        temperature: float,
+        max_tokens: int,
+    ) -> str:
+        """Generate one model response from pre-built OpenAI-style messages."""
+
+        return asyncio.run(
+            self._agenerate_one_with_messages(
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
             )
         )
 

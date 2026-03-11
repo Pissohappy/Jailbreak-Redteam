@@ -215,13 +215,15 @@ class LLMGuidedStrategy(ExpandStrategy):
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ]
-            payload = {
-                "model": client.model,
-                "messages": messages,
-                "temperature": self.temperature,
-                "max_tokens": self.max_tokens,
-            }
-            # Use synchronous call
+
+            if hasattr(client, "generate_one_with_messages"):
+                return client.generate_one_with_messages(
+                    messages=messages,
+                    temperature=self.temperature,
+                    max_tokens=self.max_tokens,
+                )
+
+            # Backward compatibility fallback for custom clients.
             return client.generate_one(
                 user_text=user_prompt,
                 image_path=None,
