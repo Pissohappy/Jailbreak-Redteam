@@ -150,7 +150,7 @@ PYTHONPATH=. python -m vlm_redteam.cli.run --config configs/run.yaml --goal "you
 
 ### 工作原理
 
-1. **历史传递**: 每轮攻击时，目标模型会收到所有之前的 prompt 和 response
+1. **历史传递（可配置）**: 默认每轮攻击会收到之前轮次的 prompt/response，也可切换关闭或接入 memory 策略
 2. **多模态历史**: 历史消息中的图片会以 base64 格式嵌入请求
 3. **Judge 评估**: Judge 仅评估当前轮次的攻击效果，不影响历史传递
 
@@ -171,6 +171,28 @@ Round 3:
             User: "攻击 prompt 2" + image2, Assistant: "响应 2"]
   User: "攻击 prompt 3" + image3
   Target: "响应 3"
+```
+
+### History 策略配置
+
+通过 `run.yaml` 可切换历史注入行为：
+
+```yaml
+history_strategy: "inherit_parent"  # inherit_parent | none | memory
+history_memory_key: "history"
+```
+
+- `inherit_parent`：默认行为，沿用父分支历史。
+- `none`：不导入上一轮历史（每轮独立）。
+- `memory`：预留接口，优先调用 `stats["history_memory_provider"]`，或读取 `state["memory"][branch_id][history_memory_key]`。
+
+`history_memory_provider` 签名示例：
+
+```python
+def history_memory_provider(*, stage, state, candidate, parent_branch, parent_history, current_entry=None):
+    # stage 为 "execute" 或 "select"
+    # 返回 list[dict] 作为历史；返回 None 则回退默认行为
+    return parent_history
 ```
 
 ### Branch.history 结构
@@ -260,7 +282,7 @@ messages = build_conversation_history(branch.history)
 
 关键节点:
 - Expand: 根据 attack_weights 采样攻击，生成候选 test case
-- Execute: 调用目标模型（带完整历史），获取响应
+- Execute: 调用目标模型（按 history_strategy 决定是否带历史），获取响应
 - Judge: 评估当前轮次的攻击效果
 - Select: 更新 beam，记录历史，决定是否终止
 ```

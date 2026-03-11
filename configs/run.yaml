@@ -18,6 +18,13 @@ temperature: 0.2
 max_tokens: 256
 concurrency: 8
 
+# Multi-turn history strategy for Execute/Select.
+# - inherit_parent: use previous branch history (default)
+# - none: no previous history
+# - memory: delegate to a memory provider/store hook
+history_strategy: "inherit_parent"
+history_memory_key: "history"
+
 enabled_attacks:
   # - demo_figstep
   - attacks_strategy.figstep.attack:FigStepAttack

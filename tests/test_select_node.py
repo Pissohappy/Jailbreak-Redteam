@@ -80,3 +80,32 @@ def test_select_beam_max_round_termination() -> None:
     assert out["best"] is not None
     assert out["best"].judge_success is False
     assert out["best"].aggregate_score == 0.3
+
+
+def test_select_beam_history_strategy_none_only_keeps_current_round() -> None:
+    state = {
+        "run_id": "r3",
+        "task": {"goal": "goal"},
+        "round_idx": 0,
+        "max_rounds": 2,
+        "beam_width": 1,
+        "per_branch_candidates": 1,
+        "beam": [{"branch_id": "b0", "history": [{"user_text": "old", "target_output": "old_resp"}]}],
+        "candidates": [
+            {
+                "cand_id": "c1",
+                "from_branch_id": "b0",
+                "test_case": {"jailbreak_prompt": "new", "jailbreak_image_hash": "ih"},
+                "target_output": "new_resp",
+                "judge_success": False,
+                "judge_score": 0.3,
+            }
+        ],
+        "done": False,
+        "best": None,
+        "stats": {"history_strategy": "none"},
+    }
+
+    out = select_beam_node(state)
+    assert len(out["beam"][0].history) == 1
+    assert out["beam"][0].history[0]["user_text"] == "new"

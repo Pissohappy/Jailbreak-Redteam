@@ -3,6 +3,7 @@ from pathlib import Path
 
 from vlm_redteam.graph.nodes.execute import execute_target_node
 from vlm_redteam.graph.state import Candidate
+from vlm_redteam.models.vllm_client import VLLMClient
 from vlm_redteam.storage.event_log import EventLogger
 
 
@@ -59,3 +60,41 @@ def test_execute_target_node_fills_output_and_logs(tmp_path: Path) -> None:
     assert all(e["event_type"] == "TargetCalled" for e in payload)
     assert payload[0]["payload"]["cand_id"] == "c1"
     assert payload[1]["payload"]["cand_id"] == "c2"
+
+
+def test_execute_history_strategy_none_drops_parent_history(monkeypatch) -> None:
+    captured_inputs = []
+
+    def _fake_generate_batch(self, list_of_inputs):
+        captured_inputs.extend(list_of_inputs)
+        return ["ok" for _ in list_of_inputs]
+
+    monkeypatch.setattr(VLLMClient, "generate_batch", _fake_generate_batch)
+
+    state = {
+        "run_id": "r-exec-none",
+        "task": {"goal": "goal"},
+        "round_idx": 0,
+        "max_rounds": 1,
+        "beam_width": 1,
+        "per_branch_candidates": 1,
+        "beam": [{"branch_id": "b0", "history": [{"user_text": "prev", "target_output": "resp"}]}],
+        "candidates": [
+            {
+                "cand_id": "c1",
+                "from_branch_id": "b0",
+                "test_case": {"jailbreak_prompt": "new prompt", "jailbreak_image_path": None},
+            }
+        ],
+        "done": False,
+        "best": None,
+        "stats": {
+            "target_vllm_base_url": "",
+            "target_vllm_model": "dummy-model",
+            "history_strategy": "none",
+        },
+    }
+
+    execute_target_node(state)
+    assert len(captured_inputs) == 1
+    assert captured_inputs[0]["history"] is None
