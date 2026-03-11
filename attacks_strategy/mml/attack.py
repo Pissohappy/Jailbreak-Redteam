@@ -121,6 +121,14 @@ class MMLAttack(BaseAttack):
     Generates four types of attack images: word-replace, base64, mirror, rotation
     """
 
+    description: str = (
+        "A multimodal jailbreak attack that hides the harmful request inside transformed text "
+        "images, such as word substitution, base64 encoding, mirroring, or rotation, and pairs "
+        "them with decoding-style prompts. By forcing the model to recover the original meaning "
+        "through visual or reasoning steps, it makes the malicious intent less explicit and "
+        "harder for safety filters to detect."
+    )
+
     # Configuration class
     CONFIG_CLASS = MMLConfig
 

@@ -266,6 +266,15 @@ def _write_lines(path: str, lines: List[str]):
 
 
 class HIMRDAttack(BaseAttack):
+
+    description: str = (
+        "A multimodal jailbreak attack that splits a harmful instruction into a harmless "
+        "textual template and a masked visual fragment, then recombines them through a "
+        "composite image and reconstruction prompt. It further boosts success with iterative "
+        "prompt refinement for model understanding and compliance, making the malicious intent "
+        "less explicit and harder for safety filters to catch."
+    )
+
     CONFIG_CLASS = HIMRDConfig
     """
     HIMRD attack integrated:

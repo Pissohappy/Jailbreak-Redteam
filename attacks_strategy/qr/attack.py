@@ -344,6 +344,12 @@ class QRAttack(BaseAttack):
     """
     QR (QR-Attack) attack method - new architecture implementation, uses singleton model manager with reference to mllm_protector
     """
+    description: str = (
+        "A multimodal jailbreak attack that rewrites the harmful request into a less explicit "
+        "prompt while moving the key harmful phrase into the image as both generated visual "
+        "content and appended text. By separating intent across text and image, it makes the "
+        "request appear safer on the surface and harder for safety filters to detect."
+    )
 
     # Configuration class
     CONFIG_CLASS = QRConfig

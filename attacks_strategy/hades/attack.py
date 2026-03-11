@@ -43,6 +43,15 @@ class HadesConfig:
 
 # ===================== Hades Attack Implementation =====================
 class HadesAttack(BaseAttack):
+
+    description: str = (
+    "A multimodal jailbreak attack that rewrites the harmful prompt around a visual "
+    "placeholder and appends a keyword to the image as a text cue. By masking the "
+    "sensitive target as a generic object or behavior in the prompt while reinforcing "
+    "the missing concept in the image, it splits malicious intent across text and "
+    "vision, making safety detection harder."
+    )
+
     CONFIG_CLASS = HadesConfig
 
     def __init__(self, config: Dict[str, Any] = None, output_image_dir: str = None):

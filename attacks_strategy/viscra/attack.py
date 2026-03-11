@@ -67,6 +67,14 @@ class VisCRAConfig:
 
 
 class VisCRAAttack(BaseAttack):
+
+    description: str = (
+        "A multimodal jailbreak attack that identifies high-attention visual regions, masks "
+        "them, and prompts the model to infer the missing content before answering the request. "
+        "By turning harmful reasoning into a visual completion task, it can shift attention "
+        "away from direct safety detection and increase the chance of unsafe responses."
+    )
+
     CONFIG_CLASS = VisCRAConfig
 
     def __init__(self, config: Dict[str, Any] = None, output_image_dir: str = None):

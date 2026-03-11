@@ -110,6 +110,13 @@ class SD35FigStepConfig:
 class SD35FigStepAttack(BaseAttack):
     """Style-driven FigStep variant registered as `sd35_figstep`."""
 
+    description: str = (
+        "A style-driven FigStep attack that renders the harmful request as visually prominent "
+        "numbered list text over a generated poster-like background. By packaging the content "
+        "as an image completion task with strong visual styling, it shifts the request away "
+        "from explicit text and can improve jailbreak success."
+    )
+
     CONFIG_CLASS = SD35FigStepConfig
 
     def __init__(self, config=None, output_image_dir: Optional[str] = None):

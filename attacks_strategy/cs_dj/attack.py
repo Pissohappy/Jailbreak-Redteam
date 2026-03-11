@@ -279,6 +279,16 @@ class CSDJAttack(BaseAttack):
       - CSDJAttack(CSDJConfig(...))
     """
 
+    # Attack description for LLM-guided strategy
+    description: str = (
+        "A visual jailbreak attack that combines semantically irrelevant distraction images "
+        "with text-rendered sub-questions derived from a harmful prompt. The images are "
+        "selected to be minimally related to the instruction and arranged with the text "
+        "images into a single grid, while a benign prompt guides the model to analyze "
+        "specific image indices. This setup hides the malicious intent inside a visual "
+        "reasoning task, increasing the chance of bypassing safety filters."
+    )
+
     # Set configuration class
     CONFIG_CLASS = CSDJConfig
 

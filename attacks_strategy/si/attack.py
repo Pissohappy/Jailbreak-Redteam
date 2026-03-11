@@ -225,6 +225,14 @@ class SIAttack(BaseAttack):
     SI-Attack attack method - new architecture implementation
     """
 
+    description: str = (
+        "A multimodal jailbreak attack that disrupts both text and image structure by "
+        "shuffling word order and image patches, then searches over multiple randomized "
+        "variants to find one that still elicits a harmful response. This can weaken safety "
+        "detection by breaking the original surface form while preserving enough signal for "
+        "the model to recover the intent."
+    )
+
     # Configuration class
     CONFIG_CLASS = SIConfig
 
