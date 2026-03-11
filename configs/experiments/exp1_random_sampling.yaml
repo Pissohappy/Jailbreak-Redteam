@@ -1,0 +1,90 @@
+# 实验1: Random-sampling expand策略
+# 用于与LLM-guided对比攻击效果
+
+run_id: exp1-random-sampling
+
+target_vllm_base_url: "http://localhost:8008"
+target_vllm_model: "qwen3-vl-8b"
+target_vllm_api_key: "dummy"
+
+# Judge配置（与llm-guided保持一致）
+judge_base_url: "http://localhost:8005"
+judge_model: "gpt-oss-120b"
+judge_mode: "multidim"
+
+beam_width: 1
+per_branch_candidates: 1
+max_rounds: 3
+
+enable_vision: true
+temperature: 0.2
+max_tokens: 4096
+concurrency: 8
+
+history_strategy: "inherit_parent"
+history_memory_key: "history"
+
+# Random-sampling expand策略（默认）
+expand_strategy: "random_sampling"
+
+enabled_attacks:
+  - attacks_strategy.figstep.attack:FigStepAttack
+  - attacks_strategy.jood.attack:JOODAttack
+  - attacks_strategy.email.attack:EmailThreadAttack
+  - attacks_strategy.flowchart.attack:FlowchartAttack
+  - attacks_strategy.visual_perturb.jigsaw:JigsawScrambleAttack
+  - attacks_strategy.visual_perturb.multimodal_shuffle:MultimodalShuffleAttack
+  - attacks_strategy.socialmedia.attack:SlackAttack
+  - attacks_strategy.mml.attack:MMLAttack
+
+attack_weights:
+  attacks_strategy.figstep.attack:FigStepAttack: 1.0
+  attacks_strategy.jood.attack:JOODAttack: 1.0
+  attacks_strategy.email.attack:EmailThreadAttack: 1.0
+  attacks_strategy.flowchart.attack:FlowchartAttack: 1.0
+  attacks_strategy.visual_perturb.jigsaw:JigsawScrambleAttack: 1.0
+  attacks_strategy.visual_perturb.multimodal_shuffle:MultimodalShuffleAttack: 1.0
+  attacks_strategy.socialmedia.attack:SlackAttack: 1.0
+  attacks_strategy.mml.attack:MMLAttack: 1.0
+
+attack_init_kwargs:
+  attacks_strategy.figstep.attack:FigStepAttack:
+    output_image_dir: runs/exp1-random-sampling/generated_images
+    config:
+      font_path: /mnt/disk1/szchen/VLMBenchmark/repo/Jailbreak-Redteam/attacks_strategy/Arial Font/ARIAL.TTF
+  attacks_strategy.jood.attack:JOODAttack:
+    output_image_dir: runs/exp1-random-sampling/generated_images
+    config:
+      harmless_image_path: /mnt/disk1/szchen/VLMBenchmark/repo/OmniSafeBench-MM/dataset/apple.png
+      aug: mixup
+      lam: 0.5
+  attacks_strategy.email.attack:EmailThreadAttack:
+    output_image_dir: runs/exp1-random-sampling/generated_images
+    config:
+      llm_base_url: "https://api.whatai.cc"
+      llm_api_key: "sk-WE6FQhZoEr4nBz4KTqHuzAYixq6pQG07VZbRhcHaWdGtMTs2"
+      llm_model_name: "gpt-4o-mini"
+  attacks_strategy.flowchart.attack:FlowchartAttack:
+    output_image_dir: runs/exp1-random-sampling/generated_images
+    config:
+      llm_base_url: "https://api.whatai.cc"
+      llm_api_key: "sk-WE6FQhZoEr4nBz4KTqHuzAYixq6pQG07VZbRhcHaWdGtMTs2"
+      llm_model_name: "gpt-4o-mini"
+  attacks_strategy.visual_perturb.jigsaw:JigsawScrambleAttack:
+    output_image_dir: runs/exp1-random-sampling/generated_images
+  attacks_strategy.visual_perturb.multimodal_shuffle:MultimodalShuffleAttack:
+    output_image_dir: runs/exp1-random-sampling/generated_images
+    config:
+      llm_base_url: "https://api.whatai.cc"
+      llm_api_key: "sk-WE6FQhZoEr4nBz4KTqHuzAYixq6pQG07VZbRhcHaWdGtMTs2"
+      llm_model_name: "gpt-4o-mini"
+  attacks_strategy.socialmedia.attack:SlackAttack:
+    output_image_dir: runs/exp1-random-sampling/generated_images
+    config:
+      llm_base_url: "https://api.whatai.cc"
+      llm_api_key: "sk-WE6FQhZoEr4nBz4KTqHuzAYixq6pQG07VZbRhcHaWdGtMTs2"
+      llm_model_name: "gpt-4o-mini"
+  attacks_strategy.mml.attack:MMLAttack:
+    output_image_dir: runs/exp1-random-sampling/generated_images
+    config:
+      font_path: /mnt/disk1/szchen/VLMBenchmark/repo/Jailbreak-Redteam/attacks_strategy/Arial Font/ARIAL.TTF

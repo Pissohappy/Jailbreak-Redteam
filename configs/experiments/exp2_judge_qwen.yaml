@@ -1,18 +1,16 @@
-# Run configuration for visual perturbation attacks
-# Sample50 dataset with absolute image paths
+# 实验2: Judge配置对比 - 使用Qwen作为Judge
+# 用于比较不同judge模型对ASR的影响
 
-run_id: visual-perturb-sample50-003
+run_id: exp2-judge-qwen
 
 target_vllm_base_url: "http://localhost:8008"
 target_vllm_model: "qwen3-vl-8b"
 target_vllm_api_key: "dummy"
 
-judge_base_url: "http://localhost:8005"
-judge_model: "gpt-oss-120b"
+# Judge配置 - Qwen模型
+judge_base_url: "http://localhost:8008"
+judge_model: "qwen3-vl-8b"
 judge_mode: "multidim"
-# judge_mode: "strongreject"
-# judge_mode: "jailbreakbench"
-
 
 beam_width: 1
 per_branch_candidates: 1
@@ -23,91 +21,76 @@ temperature: 0.2
 max_tokens: 4096
 concurrency: 8
 
-# Multi-turn history strategy for Execute/Select.
-# - inherit_parent: use previous branch history (default)
-# - none: no previous history
-# - memory: delegate to a memory provider/store hook
 history_strategy: "inherit_parent"
 history_memory_key: "history"
 
 expand_strategy: "llm_guided"
-# LLM-guided strategy specific settings (only used when expand_strategy: "llm_guided")
 llm_guide:
-  # LLM client for attack selection (optional, defaults to target model)
   base_url: "https://api.whatai.cc"
   model: "gpt-4o-mini"
   api_key: "sk-WE6FQhZoEr4nBz4KTqHuzAYixq6pQG07VZbRhcHaWdGtMTs2"
   temperature: 0.7
   max_tokens: 4096
-  # Maximum history rounds to include in context (null = all)
   max_history_rounds: null
 
 enabled_attacks:
-  - attacks_strategy.email.attack:EmailThreadAttack
-  # - attacks_strategy.cs_dj.attack:CSDJAttack
   - attacks_strategy.figstep.attack:FigStepAttack
+  - attacks_strategy.jood.attack:JOODAttack
+  - attacks_strategy.email.attack:EmailThreadAttack
   - attacks_strategy.flowchart.attack:FlowchartAttack
   - attacks_strategy.visual_perturb.jigsaw:JigsawScrambleAttack
   - attacks_strategy.visual_perturb.multimodal_shuffle:MultimodalShuffleAttack
-  - attacks_strategy.visual_perturb.photographic:PhotographicAttack
   - attacks_strategy.socialmedia.attack:SlackAttack
-  - attacks_strategy.jood.attack:JOODAttack
   - attacks_strategy.mml.attack:MMLAttack
 
 attack_weights:
-  attacks_strategy.email.attack:EmailThreadAttack: 1.0
-  # attacks_strategy.cs_dj.attack:CSDJAttack: 1.0
   attacks_strategy.figstep.attack:FigStepAttack: 1.0
+  attacks_strategy.jood.attack:JOODAttack: 1.0
+  attacks_strategy.email.attack:EmailThreadAttack: 1.0
   attacks_strategy.flowchart.attack:FlowchartAttack: 1.0
   attacks_strategy.visual_perturb.jigsaw:JigsawScrambleAttack: 1.0
   attacks_strategy.visual_perturb.multimodal_shuffle:MultimodalShuffleAttack: 1.0
-  attacks_strategy.visual_perturb.photographic:PhotographicAttack: 1.0
   attacks_strategy.socialmedia.attack:SlackAttack: 1.0
-  attacks_strategy.jood.attack:JOODAttack: 1.0
   attacks_strategy.mml.attack:MMLAttack: 1.0
 
 attack_init_kwargs:
+  attacks_strategy.figstep.attack:FigStepAttack:
+    output_image_dir: runs/exp2-judge-qwen/generated_images
+    config:
+      font_path: /mnt/disk1/szchen/VLMBenchmark/repo/Jailbreak-Redteam/attacks_strategy/Arial Font/ARIAL.TTF
+  attacks_strategy.jood.attack:JOODAttack:
+    output_image_dir: runs/exp2-judge-qwen/generated_images
+    config:
+      harmless_image_path: /mnt/disk1/szchen/VLMBenchmark/repo/OmniSafeBench-MM/dataset/apple.png
+      aug: mixup
+      lam: 0.5
   attacks_strategy.email.attack:EmailThreadAttack:
-    output_image_dir: runs/visual-perturb-sample50-001/generated_images
+    output_image_dir: runs/exp2-judge-qwen/generated_images
     config:
       llm_base_url: "https://api.whatai.cc"
       llm_api_key: "sk-WE6FQhZoEr4nBz4KTqHuzAYixq6pQG07VZbRhcHaWdGtMTs2"
       llm_model_name: "gpt-4o-mini"
-  # attacks_strategy.cs_dj.attack:CSDJAttack:
-  #   output_image_dir: runs/visual-perturb-sample50-001/generated_images
-  attacks_strategy.figstep.attack:FigStepAttack:
-    output_image_dir: runs/visual-perturb-sample50-001/generated_images
-    config:
-      font_path: /mnt/disk1/szchen/VLMBenchmark/repo/Jailbreak-Redteam/attacks_strategy/Arial Font/ARIAL.TTF
   attacks_strategy.flowchart.attack:FlowchartAttack:
-    output_image_dir: runs/visual-perturb-sample50-001/generated_images
+    output_image_dir: runs/exp2-judge-qwen/generated_images
     config:
       llm_base_url: "https://api.whatai.cc"
       llm_api_key: "sk-WE6FQhZoEr4nBz4KTqHuzAYixq6pQG07VZbRhcHaWdGtMTs2"
       llm_model_name: "gpt-4o-mini"
   attacks_strategy.visual_perturb.jigsaw:JigsawScrambleAttack:
-    output_image_dir: runs/visual-perturb-sample50-001/generated_images
+    output_image_dir: runs/exp2-judge-qwen/generated_images
   attacks_strategy.visual_perturb.multimodal_shuffle:MultimodalShuffleAttack:
-    output_image_dir: runs/visual-perturb-sample50-001/generated_images
+    output_image_dir: runs/exp2-judge-qwen/generated_images
     config:
       llm_base_url: "https://api.whatai.cc"
       llm_api_key: "sk-WE6FQhZoEr4nBz4KTqHuzAYixq6pQG07VZbRhcHaWdGtMTs2"
       llm_model_name: "gpt-4o-mini"
-  attacks_strategy.visual_perturb.photographic:PhotographicAttack:
-    output_image_dir: runs/visual-perturb-sample50-001/generated_images
   attacks_strategy.socialmedia.attack:SlackAttack:
-    output_image_dir: runs/visual-perturb-sample50-001/generated_images
+    output_image_dir: runs/exp2-judge-qwen/generated_images
     config:
       llm_base_url: "https://api.whatai.cc"
       llm_api_key: "sk-WE6FQhZoEr4nBz4KTqHuzAYixq6pQG07VZbRhcHaWdGtMTs2"
       llm_model_name: "gpt-4o-mini"
-  attacks_strategy.jood.attack:JOODAttack:
-    output_image_dir: runs/visual-perturb-sample50-001/generated_images
-    config:
-      harmless_image_path: /mnt/disk1/szchen/VLMBenchmark/repo/OmniSafeBench-MM/dataset/apple.png
-      aug: mixup
-      lam: 0.5
   attacks_strategy.mml.attack:MMLAttack:
-    output_image_dir: runs/visual-perturb-sample50-001/generated_images
+    output_image_dir: runs/exp2-judge-qwen/generated_images
     config:
       font_path: /mnt/disk1/szchen/VLMBenchmark/repo/Jailbreak-Redteam/attacks_strategy/Arial Font/ARIAL.TTF

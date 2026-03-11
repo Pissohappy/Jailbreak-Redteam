@@ -2,10 +2,28 @@
 # -*- coding: utf-8 -*-
 """
 Batch run script for processing dataset with multiple attack strategies.
+
+Directory structure:
+runs/
+├── {experiment_name}/                    # Experiment name (e.g., visual-perturb-sample50)
+│   ├── {timestamp}/                      # Timestamp directory (e.g., 20260311_143052)
+│   │   ├── config.yaml                   # Saved config copy
+│   │   ├── batch_summary.json            # Batch run summary
+│   │   ├── samples/                      # All sample results
+│   │   │   ├── sample_10/
+│   │   │   │   ├── checkpoints.json
+│   │   │   │   ├── summary.json
+│   │   │   │   ├── best_path.md
+│   │   │   │   └── events.jsonl
+│   │   │   ├── sample_36/
+│   │   │   └── ...
+│   │   └── generated_images/             # Generated images
+│   └── ...（other timestamp directories）
 """
 
 import argparse
 import json
+import shutil
 import sys
 from pathlib import Path
 from datetime import datetime
@@ -27,11 +45,34 @@ def main():
     parser.add_argument("--dataset", required=True, help="Path to dataset JSON file")
     parser.add_argument("--output-dir", default="runs", help="Output directory")
     parser.add_argument("--limit", type=int, default=None, help="Limit number of samples")
+    parser.add_argument("--experiment-name", default=None, help="Experiment name (defaults to config run_id)")
     args = parser.parse_args()
 
     # Load config
     cfg = load_config(Path(args.config))
     print(f"Loaded config: {cfg.run_id}")
+
+    # Generate experiment name and timestamp
+    experiment_name = args.experiment_name or cfg.run_id
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    # Create experiment directory structure
+    output_dir = Path(args.output_dir)
+    experiment_dir = output_dir / experiment_name / timestamp
+    samples_dir = experiment_dir / "samples"
+    generated_images_dir = experiment_dir / "generated_images"
+
+    # Create directories
+    samples_dir.mkdir(parents=True, exist_ok=True)
+    generated_images_dir.mkdir(parents=True, exist_ok=True)
+
+    print(f"Experiment directory: {experiment_dir}")
+    print(f"Timestamp: {timestamp}")
+
+    # Save config copy
+    config_copy_path = experiment_dir / "config.yaml"
+    shutil.copy(args.config, config_copy_path)
+    print(f"Config saved to: {config_copy_path}")
 
     # Load dataset
     with open(args.dataset, "r") as f:
@@ -52,6 +93,8 @@ def main():
         sample_id = sample.get("id", idx)
         goal = sample.get("original_prompt", "")
         image_path = sample.get("image_path", "")
+        main_category = sample.get("main_category", "")
+        subcategory = sample.get("subcategory", "")
 
         # Adjust image path if needed
         if image_path and not Path(image_path).is_absolute():
@@ -65,8 +108,12 @@ def main():
         print(f"  Goal: {goal[:80]}...")
         print(f"  Image: {image_path}")
 
-        # Create run ID for this sample
-        run_id = f"{cfg.run_id}_sample_{sample_id}"
+        # Create sample directory
+        sample_dir = samples_dir / f"sample_{sample_id}"
+        sample_dir.mkdir(parents=True, exist_ok=True)
+
+        # Create run ID for this sample (relative path within experiment)
+        run_id = f"{experiment_name}/{timestamp}/samples/sample_{sample_id}"
 
         initial_state = {
             "run_id": run_id,
@@ -110,13 +157,14 @@ def main():
             thread_config = {"configurable": {"thread_id": run_id}}
             final_state = app.invoke(initial_state, config=thread_config)
 
-            # Export results
+            # Export results to sample directory
             export_checkpoints(
                 checkpointer=checkpointer,
                 config=thread_config,
                 run_id=run_id,
                 runs_root=args.output_dir,
             )
+            write_run_reports(final_state, runs_root=args.output_dir)
 
             # Extract result
             best = final_state.get("best")
@@ -125,6 +173,8 @@ def main():
                 "run_id": run_id,
                 "goal": goal,
                 "image_path": str(image_path),
+                "main_category": main_category,
+                "subcategory": subcategory,
                 "success": best.judge_success if best else False,
                 "aggregate_score": best.aggregate_score if best else None,
             }
@@ -139,17 +189,29 @@ def main():
                 "run_id": run_id,
                 "goal": goal,
                 "image_path": str(image_path),
+                "main_category": main_category,
+                "subcategory": subcategory,
                 "success": False,
                 "error": str(e),
             })
 
-    # Save summary
-    output_path = Path(args.output_dir) / cfg.run_id / "batch_results.json"
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(output_path, "w") as f:
-        json.dump(results, f, indent=2, ensure_ascii=False)
+    # Save batch summary
+    batch_summary = {
+        "experiment_name": experiment_name,
+        "timestamp": timestamp,
+        "config_path": str(config_copy_path),
+        "dataset_path": str(args.dataset),
+        "total_samples": len(results),
+        "successful_samples": sum(1 for r in results if r.get("success")),
+        "success_rate": sum(1 for r in results if r.get("success")) / len(results) if results else 0,
+        "results": results,
+    }
 
-    print(f"\nBatch completed. Results saved to {output_path}")
+    batch_summary_path = experiment_dir / "batch_summary.json"
+    with open(batch_summary_path, "w") as f:
+        json.dump(batch_summary, f, indent=2, ensure_ascii=False)
+
+    print(f"\nBatch completed. Summary saved to {batch_summary_path}")
 
     # Print summary
     success_count = sum(1 for r in results if r.get("success"))
