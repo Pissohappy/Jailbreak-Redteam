@@ -20,6 +20,15 @@ class _RecordingClient:
         return '{"selected_attacks": [{"name": "a1", "reason": "ok"}]}'
 
 
+
+
+class _StubEventLogger:
+    def __init__(self) -> None:
+        self.events = []
+
+    def log_event(self, event_type, payload_dict):
+        self.events.append((event_type, payload_dict))
+
 class _FallbackOnlyClient:
     model = "fake"
 
@@ -82,3 +91,33 @@ def test_llm_guided_falls_back_for_legacy_client_without_message_api() -> None:
     assert selected == [("a1", {"llm_reason": "ok"})]
     assert client.user_text is not None
     assert "## Target Goal" in client.user_text
+
+
+def test_llm_guided_logs_selection_event() -> None:
+    client = _RecordingClient()
+    event_logger = _StubEventLogger()
+    strategy = LLMGuidedStrategy(llm_client=client)
+
+    selected = strategy.select_attacks(
+        ExpandContext(
+            run_id="r1",
+            round_idx=2,
+            branch={"branch_id": "b-1", "history": []},
+            original_prompt="goal",
+            original_image_path=None,
+            registry=_build_registry(),
+            per_branch_candidates=1,
+            seed=123,
+            stats={"event_logger": event_logger},
+        )
+    )
+
+    assert selected == [("a1", {"llm_reason": "ok"})]
+    assert len(event_logger.events) == 1
+    event_type, payload = event_logger.events[0]
+    assert event_type == "LLMGuidedSelection"
+    assert payload["round_idx"] == 2
+    assert payload["branch_id"] == "b-1"
+    assert payload["used_fallback"] is False
+    assert payload["selected_attacks"][0]["name"] == "a1"
+    assert payload["llm_response"] is not None
