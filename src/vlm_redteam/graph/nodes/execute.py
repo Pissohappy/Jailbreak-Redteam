@@ -9,6 +9,7 @@ from typing import Any
 from vlm_redteam.models.vllm_client import VLLMClient
 from vlm_redteam.storage.event_log import EventLogger
 
+from ..history_policy import resolve_execution_history
 from ..state import BeamState, Candidate, GraphState
 
 
@@ -65,14 +66,14 @@ def execute_target_node(state: GraphState) -> GraphState:
         user_text = test_case.get('jailbreak_prompt', goal)
         image_path = test_case.get("jailbreak_image_path")
 
-        # Get history from parent branch for multi-turn support
+        # Resolve multi-turn history via configured strategy
         from_branch_id = _get_candidate_attr(cand, "from_branch_id", "")
         parent_branch = parent_map.get(from_branch_id)
-        history = None
-        if parent_branch:
-            parent_history = _get_candidate_attr(parent_branch, "history", [])
-            if parent_history:
-                history = parent_history
+        history = resolve_execution_history(
+            state=state,
+            candidate=cand,
+            parent_branch=parent_branch,
+        )
 
         batch_inputs.append(
             {

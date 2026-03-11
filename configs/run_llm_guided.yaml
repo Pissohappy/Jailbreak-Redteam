@@ -21,6 +21,13 @@ temperature: 0.2
 max_tokens: 256
 concurrency: 8
 
+# Multi-turn history strategy for Execute/Select.
+# - inherit_parent: use previous branch history (default)
+# - none: no previous history
+# - memory: delegate to a memory provider/store hook
+history_strategy: "inherit_parent"
+history_memory_key: "history"
+
 # Expand strategy configuration
 # Options: "random_sampling" (default) or "llm_guided"
 expand_strategy: "llm_guided"

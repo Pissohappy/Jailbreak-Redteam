@@ -8,7 +8,7 @@ import inspect
 import json
 from pathlib import Path
 import re
-from typing import Any
+from typing import Any, Literal
 
 import yaml
 from langgraph.checkpoint.memory import InMemorySaver
@@ -52,6 +52,8 @@ class RunConfig(BaseModel):
     # Expand strategy configuration
     expand_strategy: str = "random_sampling"  # "random_sampling" or "llm_guided"
     llm_guide: dict[str, Any] | None = None  # LLM-guided strategy settings
+    history_strategy: Literal["inherit_parent", "none", "memory"] = "inherit_parent"
+    history_memory_key: str = "history"
 
 
 def load_config(path: Path) -> RunConfig:
@@ -251,6 +253,8 @@ def main() -> None:
             # Expand strategy config (not the object itself - must be serializable)
             "expand_strategy_name": cfg.expand_strategy,
             "llm_guide_config": dict(cfg.llm_guide) if cfg.llm_guide else None,
+            "history_strategy": cfg.history_strategy,
+            "history_memory_key": cfg.history_memory_key,
         },
     }
 

@@ -7,6 +7,7 @@ from typing import Any
 
 from vlm_redteam.storage.run_outputs import append_state_snapshot
 
+from ..history_policy import compose_branch_history
 from ..state import BeamState, Branch, Candidate, GraphState, stable_hash
 
 
@@ -63,22 +64,25 @@ def select_beam_node(state: GraphState) -> GraphState:
         )
         parent_id = str(_get(candidate, "from_branch_id", "")) or None
         parent_branch = parent_map.get(parent_id or "")
-        parent_history = list(_get(parent_branch, "history", [])) if parent_branch else []
+        branch_id = f"b-{str(_get(candidate, 'cand_id', signature))}"
+        current_entry = {
+            "round_idx": next_round_idx,
+            "branch_id": branch_id,
+            "user_text": f"{jailbreak_prompt}".strip(),
+            "image_path": image_path,
+            "target_output": target_output,
+            "judge_reason": _get(candidate, "judge_reason", ""),
+        }
         branch = Branch(
-            branch_id=f"b-{str(_get(candidate, 'cand_id', signature))}",
+            branch_id=branch_id,
             parent_id=parent_id,
             round_idx=next_round_idx,
-            history=parent_history
-            + [
-                {
-                    "round_idx": next_round_idx,
-                    "branch_id": f"b-{str(_get(candidate, 'cand_id', signature))}",
-                    "user_text": f"{jailbreak_prompt}".strip(),
-                    "image_path": image_path,
-                    "target_output": target_output,
-                    "judge_reason": _get(candidate, "judge_reason", ""),
-                }
-            ],
+            history=compose_branch_history(
+                state=state,
+                candidate=candidate,
+                parent_branch=parent_branch,
+                current_entry=current_entry,
+            ),
             user_text=f"{jailbreak_prompt}".strip(),
             user_image=image_path,
             target_output=target_output,
