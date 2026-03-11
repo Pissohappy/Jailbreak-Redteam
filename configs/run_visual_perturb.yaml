@@ -1,7 +1,7 @@
 # Run configuration for visual perturbation attacks
 # Test all specified attack strategies on sample50 dataset
 
-run_id: visual-perturb-run-007
+run_id: visual-perturb-run-010
 
 target_vllm_base_url: "http://localhost:8008"
 target_vllm_model: "qwen3-vl-8b"
@@ -10,10 +10,12 @@ target_vllm_api_key: "dummy"
 judge_base_url: "http://localhost:8008"
 judge_model: "qwen3-vl-8b"
 # judge_mode: "multidim"
-judge_mode: "strongreject"
+# judge_mode: "strongreject"
+judge_mode: "jailbreakbench"
 
-beam_width: 2
-per_branch_candidates: 3
+
+beam_width: 1
+per_branch_candidates: 1
 max_rounds: 3
 
 enable_vision: true
@@ -32,11 +34,11 @@ expand_strategy: "llm_guided"
 # LLM-guided strategy specific settings (only used when expand_strategy: "llm_guided")
 llm_guide:
   # LLM client for attack selection (optional, defaults to target model)
-  base_url: "http://localhost:8008"
-  model: "qwen3-vl-8b"
-  api_key: "dummy"
+  base_url: "https://api.whatai.cc"
+  model: "gpt-4o-mini"
+  api_key: "sk-WE6FQhZoEr4nBz4KTqHuzAYixq6pQG07VZbRhcHaWdGtMTs2"
   temperature: 0.7
-  max_tokens: 1024
+  max_tokens: 4096
   # Maximum history rounds to include in context (null = all)
   max_history_rounds: null
 
