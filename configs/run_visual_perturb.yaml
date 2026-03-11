@@ -1,14 +1,14 @@
 # Run configuration for visual perturbation attacks
 # Test all specified attack strategies on sample50 dataset
 
-run_id: visual-perturb-run-010
+run_id: visual-perturb-run-011
 
 target_vllm_base_url: "http://localhost:8008"
 target_vllm_model: "qwen3-vl-8b"
 target_vllm_api_key: "dummy"
 
-judge_base_url: "http://localhost:8008"
-judge_model: "qwen3-vl-8b"
+judge_base_url: "http://localhost:8005"
+judge_model: "gpt-oss-120b"
 # judge_mode: "multidim"
 # judge_mode: "strongreject"
 judge_mode: "jailbreakbench"
@@ -20,7 +20,7 @@ max_rounds: 3
 
 enable_vision: true
 temperature: 0.2
-max_tokens: 256
+max_tokens: 4096
 concurrency: 8
 
 # Multi-turn history strategy for Execute/Select.
