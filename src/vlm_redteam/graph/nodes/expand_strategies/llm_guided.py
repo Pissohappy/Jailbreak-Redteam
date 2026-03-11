@@ -261,6 +261,14 @@ class LLMGuidedStrategy(ExpandStrategy):
         client = self._get_llm_client(ctx.stats)
 
         # Call LLM
+        system_prompt = self.system_prompt.format(num_attacks=ctx.per_branch_candidates)
+        user_prompt = self.user_prompt_template.format(
+            goal=goal,
+            attack_descriptions=attack_descriptions,
+            history_text=history_text,
+            round_idx=ctx.round_idx,
+            num_attacks=ctx.per_branch_candidates,
+        )
         response = self._call_llm(
             client=client,
             goal=goal,
@@ -283,10 +291,21 @@ class LLMGuidedStrategy(ExpandStrategy):
                     valid_selected.append((attack_name, params))
             selected = valid_selected if valid_selected else None
 
+        used_fallback = False
         # Fallback to random sampling if LLM failed or returned invalid attacks
         if not selected:
+            used_fallback = True
             if self.fallback_strategy is not None:
-                return self.fallback_strategy.select_attacks(ctx)
+                fallback_selected = self.fallback_strategy.select_attacks(ctx)
+                self._log_guidance_event(
+                    ctx=ctx,
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    llm_response=response,
+                    selected=fallback_selected,
+                    used_fallback=used_fallback,
+                )
+                return fallback_selected
             # Default fallback: random sampling
             rng = Random(ctx.seed)
             sampled_attacks = ctx.registry.sample_attacks(ctx.per_branch_candidates, rng)
@@ -296,4 +315,46 @@ class LLMGuidedStrategy(ExpandStrategy):
                 params = {"seed": sampled_seed, "fallback": True}
                 selected.append((attack_name, params))
 
+        self._log_guidance_event(
+            ctx=ctx,
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            llm_response=response,
+            selected=selected,
+            used_fallback=used_fallback,
+        )
         return selected
+
+    def _log_guidance_event(
+        self,
+        *,
+        ctx: ExpandContext,
+        system_prompt: str,
+        user_prompt: str,
+        llm_response: str | None,
+        selected: list[tuple[str, dict[str, Any]]],
+        used_fallback: bool,
+    ) -> None:
+        from vlm_redteam.storage.event_log import EventLogger
+
+        event_logger: EventLogger = ctx.stats.get("event_logger") or EventLogger(
+            run_id=ctx.run_id,
+            runs_root=ctx.stats.get("runs_root", "runs"),
+        )
+
+        branch_id = _get(ctx.branch, "branch_id", "")
+        event_logger.log_event(
+            "LLMGuidedSelection",
+            {
+                "round_idx": ctx.round_idx,
+                "branch_id": branch_id,
+                "strategy": self.name,
+                "used_fallback": used_fallback,
+                "system_prompt": system_prompt,
+                "user_prompt": user_prompt,
+                "llm_response": llm_response,
+                "selected_attacks": [
+                    {"name": name, "params": params} for name, params in selected
+                ],
+            },
+        )
