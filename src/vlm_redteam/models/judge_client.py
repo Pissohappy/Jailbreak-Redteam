@@ -672,6 +672,9 @@ Output exactly:
         if httpx is None:
             raise RuntimeError("httpx is required when judge base_url is set")
 
+        # print(f"jailbreak_prompt: {jailbreak_prompt}")
+        # print(f"target_output: {target_output}")
+
         if self.mode == "strongreject":
             return await self._ajudge_one_strongreject(goal, jailbreak_prompt, target_output)
         if self.mode == "jailbreakbench":

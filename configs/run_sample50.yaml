@@ -1,14 +1,14 @@
 # Run configuration for visual perturbation attacks
 # Sample50 dataset with absolute image paths
 
-run_id: visual-perturb-sample50-001
+run_id: visual-perturb-sample50-002
 
 target_vllm_base_url: "http://localhost:8008"
 target_vllm_model: "qwen3-vl-8b"
 target_vllm_api_key: "dummy"
 
 judge_base_url: "http://localhost:8005"
-judge_model: "Qwen3-VL-30B-A3B-Instruct"
+judge_model: "gpt-oss-120b"
 # judge_mode: "multidim"
 # judge_mode: "strongreject"
 judge_mode: "jailbreakbench"
