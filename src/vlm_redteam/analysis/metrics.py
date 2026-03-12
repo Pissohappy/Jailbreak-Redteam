@@ -459,7 +459,7 @@ def calculate_round_success_distribution(run: ExperimentRun, max_rounds: int = 1
 
     Args:
         run: Experiment run to analyze
-        max_rounds: Maximum number of rounds to consider
+        max_rounds: Maximum number of rounds to display (all successes are counted for total)
 
     Returns:
         List of RoundSuccessDistribution for each round
@@ -478,9 +478,9 @@ def calculate_round_success_distribution(run: ExperimentRun, max_rounds: int = 1
         elif result.best_branch_path:
             success_round = len(result.best_branch_path)
 
-        if success_round is not None and success_round <= max_rounds:
+        if success_round is not None:
             success_by_round[success_round] += 1
-            total_successes += 1
+            total_successes += 1  # Count all successes regardless of round
 
     distribution = []
     cumulative = 0
@@ -497,6 +497,78 @@ def calculate_round_success_distribution(run: ExperimentRun, max_rounds: int = 1
         ))
 
     return distribution
+
+
+@dataclass
+class RoundSuccessRate:
+    """Success rate metrics for each round."""
+
+    round_idx: int
+    total_samples_at_round: int  # Total samples that reached this round
+    new_successes: int  # New successes at this round
+    round_success_rate: float  # New successes / samples at this round
+    cumulative_successes: int  # Cumulative successes up to this round
+    cumulative_asr: float  # Cumulative ASR up to this round
+
+
+def calculate_round_success_rate(run: ExperimentRun, max_rounds: int = 10) -> list[RoundSuccessRate]:
+    """Calculate success rate for each round.
+
+    This shows how the attack success rate evolves across rounds, answering:
+    - What percentage of samples succeed at each specific round?
+    - What is the cumulative success rate after n rounds?
+
+    Args:
+        run: Experiment run to analyze
+        max_rounds: Maximum number of rounds to consider
+
+    Returns:
+        List of RoundSuccessRate for each round
+    """
+    # Track samples at each round and successes at each round
+    samples_at_round: dict[int, int] = defaultdict(int)
+    success_at_round: dict[int, int] = defaultdict(int)
+
+    for result in run.results:
+        # Determine how many rounds this sample went through
+        rounds = 0
+        if result.round_topk_scores:
+            rounds = len(result.round_topk_scores)
+        elif result.best_branch_path:
+            rounds = len(result.best_branch_path)
+
+        # Count samples that reached each round
+        for r in range(1, rounds + 1):
+            samples_at_round[r] += 1
+
+        # Determine the success round
+        if result.success:
+            success_round = rounds
+            if success_round <= max_rounds:
+                success_at_round[success_round] += 1
+
+    total_samples = len(run.results)
+    results = []
+    cumulative_successes = 0
+
+    for round_idx in range(1, max_rounds + 1):
+        samples = samples_at_round.get(round_idx, 0)
+        new_successes = success_at_round.get(round_idx, 0)
+        cumulative_successes += new_successes
+
+        round_rate = new_successes / samples if samples > 0 else 0.0
+        cumulative_rate = cumulative_successes / total_samples if total_samples > 0 else 0.0
+
+        results.append(RoundSuccessRate(
+            round_idx=round_idx,
+            total_samples_at_round=samples,
+            new_successes=new_successes,
+            round_success_rate=round_rate,
+            cumulative_successes=cumulative_successes,
+            cumulative_asr=cumulative_rate,
+        ))
+
+    return results
 
 
 def get_case_analysis(run: ExperimentRun, sample_id: int | str | None = None, limit: int = 10) -> list[dict]:

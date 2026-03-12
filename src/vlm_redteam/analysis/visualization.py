@@ -9,12 +9,14 @@ from vlm_redteam.analysis.loader import ExperimentRun
 from vlm_redteam.analysis.metrics import (
     CategoryMetrics,
     RoundDistribution,
+    RoundSuccessRate,
     calculate_category_metrics,
     calculate_score_distribution,
     calculate_round_distribution,
     calculate_attack_metrics,
     calculate_attack_success_by_round,
     calculate_round_success_distribution,
+    calculate_round_success_rate,
     AttackMetrics,
 )
 
@@ -678,6 +680,197 @@ def generate_attack_analysis_plots(
         plots["success_rate_by_round"] = str(path)
 
     # Round success distribution
+    path = output_dir / f"{prefix}round_success_distribution.png"
+    fig = plot_round_success_distribution(run, path)
+    if fig:
+        plots["round_success_distribution"] = str(path)
+
+    return plots
+
+
+# ============ Round Analysis Visualization ============
+
+def plot_round_success_line(
+    run: ExperimentRun,
+    output_path: str | Path | None = None,
+    figsize: tuple[int, int] = (12, 8),
+    max_rounds: int = 10,
+    title: str | None = None,
+) -> Any:
+    """Plot success rate evolution across rounds as line charts.
+
+    Shows two lines:
+    1. Cumulative ASR (Attack Success Rate) after each round
+    2. Round success rate (success rate at each specific round)
+
+    Args:
+        run: Experiment run to analyze
+        output_path: Path to save the plot (optional)
+        figsize: Figure size as (width, height)
+        max_rounds: Maximum number of rounds to plot
+        title: Custom title for the plot
+
+    Returns:
+        matplotlib Figure object
+    """
+    plt = _ensure_matplotlib()
+
+    round_metrics = calculate_round_success_rate(run, max_rounds)
+
+    if not round_metrics:
+        print("No round data to plot")
+        return None
+
+    rounds = [m.round_idx for m in round_metrics]
+    cumulative_asr = [m.cumulative_asr * 100 for m in round_metrics]
+    round_rate = [m.round_success_rate * 100 for m in round_metrics]
+    new_successes = [m.new_successes for m in round_metrics]
+
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=figsize, sharex=True)
+
+    # Top plot: Cumulative ASR line chart
+    ax1.plot(rounds, cumulative_asr, marker="o", linewidth=2.5,
+             color="#e74c3c", markersize=8, label="Cumulative ASR")
+    ax1.fill_between(rounds, 0, cumulative_asr, alpha=0.2, color="#e74c3c")
+
+    ax1.set_ylabel("Cumulative ASR (%)", fontsize=11)
+    ax1.set_title(title or "Attack Success Rate by Round", fontsize=13)
+    ax1.set_ylim(0, max(cumulative_asr) * 1.15 if cumulative_asr else 100)
+    ax1.grid(True, alpha=0.3)
+    ax1.legend(loc="upper left")
+
+    # Add value labels
+    for i, (r, asr) in enumerate(zip(rounds, cumulative_asr)):
+        if asr > 0 or r <= 3:
+            ax1.annotate(f"{asr:.1f}%", (r, asr), textcoords="offset points",
+                        xytext=(0, 10), ha="center", fontsize=9)
+
+    # Bottom plot: Round-by-round success rate (bar chart + line)
+    bars = ax2.bar(rounds, round_rate, color="#3498db", alpha=0.7, label="Round Success Rate")
+    ax2.plot(rounds, round_rate, marker="s", linewidth=2, color="#2980b9", markersize=6)
+
+    ax2.set_xlabel("Round", fontsize=11)
+    ax2.set_ylabel("Success Rate at Round (%)", fontsize=11)
+    ax2.set_ylim(0, max(round_rate) * 1.3 if round_rate else 100)
+    ax2.grid(True, alpha=0.3)
+    ax2.legend(loc="upper right")
+
+    # Add value labels on bars
+    for bar, rate, success in zip(bars, round_rate, new_successes):
+        if rate > 0:
+            ax2.text(bar.get_x() + bar.get_width() / 2, bar.get_height(),
+                    f"{rate:.1f}%\n({success})",
+                    ha="center", va="bottom", fontsize=8)
+
+    # Add secondary y-axis for new successes count
+    ax2_twin = ax2.twinx()
+    ax2_twin.plot(rounds, new_successes, marker="D", linewidth=1.5,
+                  color="#27ae60", linestyle="--", alpha=0.7, markersize=5)
+    ax2_twin.set_ylabel("New Successes (count)", fontsize=10, color="#27ae60")
+    ax2_twin.tick_params(axis="y", labelcolor="#27ae60")
+    ax2_twin.set_ylim(0, max(new_successes) * 1.3 if max(new_successes) > 0 else 10)
+
+    plt.tight_layout()
+
+    if output_path:
+        fig.savefig(output_path, dpi=150, bbox_inches="tight")
+        print(f"Plot saved to {output_path}")
+
+    return fig
+
+
+def plot_round_success_comparison(
+    runs: list[ExperimentRun],
+    output_path: str | Path | None = None,
+    figsize: tuple[int, int] = (12, 7),
+    max_rounds: int = 10,
+    title: str = "Cumulative ASR Comparison by Round",
+) -> Any:
+    """Compare cumulative ASR across rounds for multiple runs.
+
+    Args:
+        runs: List of experiment runs to compare
+        output_path: Path to save the plot (optional)
+        figsize: Figure size as (width, height)
+        max_rounds: Maximum number of rounds to plot
+        title: Custom title for the plot
+
+    Returns:
+        matplotlib Figure object
+    """
+    plt = _ensure_matplotlib()
+
+    if not runs:
+        print("No runs to compare")
+        return None
+
+    fig, ax = plt.subplots(figsize=figsize)
+
+    colors = plt.cm.tab10(range(len(runs)))
+    markers = ["o", "s", "D", "^", "v", "<", ">", "p", "h", "*"]
+
+    for i, run in enumerate(runs):
+        round_metrics = calculate_round_success_rate(run, max_rounds)
+        if not round_metrics:
+            continue
+
+        rounds = [m.round_idx for m in round_metrics]
+        cumulative_asr = [m.cumulative_asr * 100 for m in round_metrics]
+
+        label = f"{run.experiment_name}"
+        if run.timestamp:
+            label += f" ({run.timestamp})"
+
+        ax.plot(rounds, cumulative_asr, marker=markers[i % len(markers)],
+                linewidth=2, color=colors[i], markersize=7, label=label)
+
+    ax.set_xlabel("Round", fontsize=11)
+    ax.set_ylabel("Cumulative ASR (%)", fontsize=11)
+    ax.set_title(title, fontsize=13)
+    ax.set_ylim(0, 105)
+    ax.grid(True, alpha=0.3)
+    ax.legend(bbox_to_anchor=(1.02, 1), loc="upper left")
+
+    plt.tight_layout()
+
+    if output_path:
+        fig.savefig(output_path, dpi=150, bbox_inches="tight")
+        print(f"Plot saved to {output_path}")
+
+    return fig
+
+
+def generate_round_analysis_plots(
+    run: ExperimentRun,
+    output_dir: str | Path,
+    prefix: str = "",
+    max_rounds: int = 10,
+) -> dict[str, Any]:
+    """Generate all round analysis plots for an experiment run.
+
+    Args:
+        run: Experiment run to analyze
+        output_dir: Directory to save plots
+        prefix: Prefix for output filenames
+        max_rounds: Maximum number of rounds to analyze
+
+    Returns:
+        Dictionary with paths to generated plots
+    """
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    prefix = f"{prefix}_" if prefix else ""
+
+    plots = {}
+
+    # Round success line chart
+    path = output_dir / f"{prefix}round_success_line.png"
+    fig = plot_round_success_line(run, path, max_rounds=max_rounds)
+    if fig:
+        plots["round_success_line"] = str(path)
+
+    # Round success distribution (existing function)
     path = output_dir / f"{prefix}round_success_distribution.png"
     fig = plot_round_success_distribution(run, path)
     if fig:

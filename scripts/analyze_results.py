@@ -22,6 +22,9 @@ Usage:
     # Analyze attack details (calls, success rate by attack type)
     python scripts/analyze_results.py --experiment visual-perturb-sample50 --latest --attack-analysis
 
+    # Round analysis (success rate by round)
+    python scripts/analyze_results.py --experiment visual-perturb-sample50 --latest --round-analysis --plots
+
     # Case analysis
     python scripts/analyze_results.py --experiment visual-perturb-sample50 --latest --case-analysis
 
@@ -58,7 +61,11 @@ from vlm_redteam.analysis.visualization import (
     plot_attack_calls_by_round,
     plot_success_rate_by_round,
     plot_round_success_distribution,
+    plot_round_success_line,
+    plot_round_success_comparison,
+    generate_round_analysis_plots,
 )
+from vlm_redteam.analysis.metrics import calculate_round_success_rate
 
 
 def print_separator(char: str = "-", length: int = 60):
@@ -335,6 +342,78 @@ def cmd_case_analysis(
             print(f"   Attack Sequence: (no detailed events)")
 
 
+def cmd_round_analysis(
+    loader: ExperimentLoader,
+    experiment_name: str,
+    timestamp: str | None = None,
+    generate_plots: bool = False,
+    output_dir: str | None = None,
+    max_rounds: int = 10,
+):
+    """Analyze success rate evolution across rounds."""
+    if timestamp:
+        run = loader.load_with_sample_details(experiment_name, timestamp)
+    else:
+        run = loader.load_latest_run(experiment_name)
+
+    if not run:
+        print(f"Run not found: {experiment_name}" + (f"/{timestamp}" if timestamp else ""))
+        return
+
+    print_separator("=")
+    print(f"Round Analysis: {run.experiment_name}")
+    if run.timestamp:
+        print(f"Timestamp: {run.timestamp}")
+    print_separator("=")
+
+    # Calculate round success rate metrics
+    round_metrics = calculate_round_success_rate(run, max_rounds)
+
+    if not round_metrics:
+        print("\nNo round data to analyze.")
+        return
+
+    # Print round analysis table
+    print(f"\n🔄 Success Rate by Round")
+    print(f"   {'Round':<6} {'Samples':>8} {'New Success':>12} {'Round Rate':>12} {'Cumulative':>12}")
+    print(f"   {'-'*6} {'-'*8} {'-'*12} {'-'*12} {'-'*12}")
+
+    for m in round_metrics:
+        if m.new_successes > 0 or m.round_idx <= 3:
+            print(f"   {m.round_idx:<6} {m.total_samples_at_round:>8} {m.new_successes:>12} "
+                  f"{m.round_success_rate*100:>11.1f}% {m.cumulative_asr*100:>11.1f}%")
+
+    # Print summary
+    total_successes = sum(m.new_successes for m in round_metrics)
+    final_asr = round_metrics[-1].cumulative_asr if round_metrics else 0
+
+    print(f"\n📊 Summary")
+    print(f"   Total Samples: {len(run.results)}")
+    print(f"   Total Successes: {total_successes}")
+    print(f"   Final ASR: {final_asr*100:.1f}%")
+
+    # Find most effective rounds
+    effective_rounds = sorted(
+        [m for m in round_metrics if m.new_successes > 0],
+        key=lambda x: x.new_successes,
+        reverse=True
+    )[:3]
+
+    if effective_rounds:
+        print(f"\n🎯 Most Effective Rounds")
+        for i, m in enumerate(effective_rounds, 1):
+            print(f"   {i}. Round {m.round_idx}: {m.new_successes} successes ({m.round_success_rate*100:.1f}% rate)")
+
+    # Generate plots if requested
+    if generate_plots:
+        plots_dir = output_dir or f"runs/{experiment_name}/{run.timestamp}/analysis"
+        print(f"\n📊 Generating round analysis plots to: {plots_dir}")
+
+        plots = generate_round_analysis_plots(run, plots_dir, max_rounds=max_rounds)
+        for name, path in plots.items():
+            print(f"   {name}: {path}")
+
+
 def cmd_compare_runs(
     loader: ExperimentLoader,
     run_specs: list[str],
@@ -382,6 +461,11 @@ def cmd_compare_runs(
 
         plot_strategy_comparison(runs, plot_path)
         print(f"\n📊 Comparison plot saved to: {plot_path}")
+
+        # Also generate round comparison plot
+        round_plot_path = plots_dir / "round_comparison.png"
+        plot_round_success_comparison(runs, round_plot_path)
+        print(f"📊 Round comparison plot saved to: {round_plot_path}")
 
 
 def cmd_export_report(
@@ -450,6 +534,11 @@ def main():
         help="Analyze attack calls and success rates (requires --experiment)",
     )
     action_group.add_argument(
+        "--round-analysis",
+        action="store_true",
+        help="Analyze success rate by round (requires --experiment)",
+    )
+    action_group.add_argument(
         "--case-analysis",
         action="store_true",
         help="Analyze specific cases (requires --experiment)",
@@ -510,6 +599,12 @@ def main():
         default=15,
         help="Number of top attacks to show in attack analysis (default: 15)",
     )
+    parser.add_argument(
+        "--max-rounds",
+        type=int,
+        default=10,
+        help="Maximum number of rounds to analyze in round analysis (default: 10)",
+    )
 
     args = parser.parse_args()
 
@@ -549,6 +644,18 @@ def main():
             args.output,
             args.top_n,
         )
+    elif args.round_analysis:
+        if not args.experiment:
+            print("Error: --experiment is required with --round-analysis")
+            sys.exit(1)
+        cmd_round_analysis(
+            loader,
+            args.experiment,
+            args.timestamp,
+            args.plots,
+            args.output,
+            args.max_rounds,
+        )
     elif args.case_analysis:
         if not args.experiment:
             print("Error: --experiment is required with --case-analysis")
@@ -573,6 +680,9 @@ def main():
             print()
             print("  # Analyze specific run with plots")
             print("  python scripts/analyze_results.py --experiment my-experiment --timestamp 20260311_143052 --plots")
+            print()
+            print("  # Round analysis with plots")
+            print("  python scripts/analyze_results.py --experiment my-experiment --round-analysis --plots")
             print()
             print("  # Attack analysis")
             print("  python scripts/analyze_results.py --experiment my-experiment --attack-analysis --plots")

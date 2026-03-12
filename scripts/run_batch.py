@@ -127,7 +127,7 @@ def main():
             "done": False,
             "best": None,
             "stats": {
-                "seed": 0,
+                "seed": int(sample_id),  # Use sample_id to ensure different random seeds per sample
                 "runs_root": args.output_dir,
                 "target_vllm_base_url": cfg.target_vllm_base_url,
                 "target_vllm_model": cfg.target_vllm_model,
