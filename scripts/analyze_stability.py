@@ -72,6 +72,7 @@ def extract_llm_selections(events: list[dict]) -> list[dict]:
                 "round_idx": payload.get("round_idx"),
                 "branch_id": payload.get("branch_id"),
                 "used_fallback": payload.get("used_fallback", False),
+                "fallback_reason": payload.get("fallback_reason"),
                 "selected_attacks": payload.get("selected_attacks", []),
                 "llm_response": payload.get("llm_response"),
             })
@@ -145,6 +146,7 @@ def analyze_strategy_consistency(run_dirs: list[Path]) -> dict[str, Any]:
                 "round_idx": sel.get("round_idx"),
                 "selected_attacks": sel.get("selected_attacks", []),
                 "used_fallback": sel.get("used_fallback", False),
+                "fallback_reason": sel.get("fallback_reason"),
             })
 
     # 分析一致性
@@ -153,6 +155,8 @@ def analyze_strategy_consistency(run_dirs: list[Path]) -> dict[str, Any]:
         "samples_with_multiple_runs": 0,
         "samples_with_consistent_selection": 0,
         "fallback_rate_per_run": defaultdict(int),
+        "fallback_reasons": Counter(),  # 统计各环节 fallback 原因
+        "fallback_reasons_per_run": defaultdict(lambda: Counter()),  # 按 run 统计 fallback 原因
         "attack_frequency": Counter(),
         "attack_selection_matrix": defaultdict(lambda: defaultdict(int)),
     }
@@ -171,7 +175,13 @@ def analyze_strategy_consistency(run_dirs: list[Path]) -> dict[str, Any]:
 
                 # 统计 fallback 使用
                 if sel.get("used_fallback"):
-                    consistency_stats["fallback_rate_per_run"][sel.get("run_idx", 0)] += 1
+                    run_idx = sel.get("run_idx", 0)
+                    consistency_stats["fallback_rate_per_run"][run_idx] += 1
+
+                    # 统计 fallback 原因
+                    reason = sel.get("fallback_reason", "unknown")
+                    consistency_stats["fallback_reasons"][reason] += 1
+                    consistency_stats["fallback_reasons_per_run"][run_idx][reason] += 1
 
                 # 统计攻击方法使用频率
                 for attack in sel.get("selected_attacks", []):
@@ -194,6 +204,10 @@ def analyze_strategy_consistency(run_dirs: list[Path]) -> dict[str, Any]:
     # 转换 Counter 为普通字典以便 JSON 序列化
     consistency_stats["attack_frequency"] = dict(consistency_stats["attack_frequency"])
     consistency_stats["fallback_rate_per_run"] = dict(consistency_stats["fallback_rate_per_run"])
+    consistency_stats["fallback_reasons"] = dict(consistency_stats["fallback_reasons"])
+    consistency_stats["fallback_reasons_per_run"] = {
+        k: dict(v) for k, v in consistency_stats["fallback_reasons_per_run"].items()
+    }
 
     # 攻击选择矩阵转换为普通字典
     consistency_stats["attack_selection_matrix"] = {
@@ -261,6 +275,41 @@ def generate_report(asr_stability: dict, strategy_consistency: dict, output_path
         report_lines.append("")
         for run_idx, count in sorted(strategy_consistency["fallback_rate_per_run"].items()):
             report_lines.append(f"- Run {run_idx + 1}: {count} 次 fallback")
+
+        # Fallback 原因分析
+        if strategy_consistency.get("fallback_reasons"):
+            report_lines.append("")
+            report_lines.append("### Fallback 原因分析")
+            report_lines.append("")
+            report_lines.append("#### 总体统计")
+            report_lines.append("")
+            # 原因描述映射
+            reason_descriptions = {
+                "llm_call_failed": "LLM 调用失败（网络/API 错误）",
+                "parse_failed": "响应解析失败（JSON 格式错误）",
+                "invalid_attack_name": "攻击名称无效（不在可用列表中）",
+                "unknown": "未知原因",
+            }
+            for reason, count in sorted(
+                strategy_consistency["fallback_reasons"].items(),
+                key=lambda x: x[1],
+                reverse=True,
+            ):
+                desc = reason_descriptions.get(reason, reason)
+                report_lines.append(f"- {desc}: {count} 次")
+
+            # 按运行统计 fallback 原因
+            if strategy_consistency.get("fallback_reasons_per_run"):
+                report_lines.append("")
+                report_lines.append("#### 各运行详情")
+                report_lines.append("")
+                for run_idx in sorted(strategy_consistency["fallback_reasons_per_run"].keys()):
+                    reasons = strategy_consistency["fallback_reasons_per_run"][run_idx]
+                    report_lines.append(f"**Run {run_idx + 1}:**")
+                    for reason, count in sorted(reasons.items(), key=lambda x: x[1], reverse=True):
+                        desc = reason_descriptions.get(reason, reason)
+                        report_lines.append(f"  - {desc}: {count} 次")
+                    report_lines.append("")
 
     report_lines.append("")
 

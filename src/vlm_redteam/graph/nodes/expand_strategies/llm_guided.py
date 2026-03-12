@@ -8,6 +8,7 @@ from random import Random
 from typing import Any
 
 from .base import ExpandContext, ExpandStrategy
+from vlm_redteam.graph.state import Branch, Candidate
 
 
 # Default system prompt for LLM-guided attack selection
@@ -62,7 +63,8 @@ def _format_history(branch: Branch | dict[str, Any], max_rounds: int | None = No
     lines = []
     for entry in history:
         round_idx = _get(entry, "round_idx", "?")
-        attack_name = _get(entry, "attack_name", "unknown")
+        attack_full_name = _get(entry, "attack_name", "unknown")
+        attack_name = attack_full_name.split(":")[-1] if isinstance(attack_full_name, str) else "unknown"
         user_text = _get(entry, "user_text", "")[:200]  # Truncate long prompts
         target_output = _get(entry, "target_output", "")[:300]  # Truncate long outputs
         judge_reason = _get(entry, "judge_reason", "")
@@ -87,36 +89,122 @@ def _get_attack_descriptions(registry: Any) -> str:
         description = getattr(attack_obj, "description", None)
         if description is None:
             description = f"Attack method: {name}"
-        descriptions.append(f"- **{name}**: {description}")
+
+        short_name = name.split(":")[-1]
+        descriptions.append(f"- **{short_name}**: {description}")
 
     return "\n".join(descriptions)
 
+def _extract_json_candidates(text: str) -> list[str]:
+    """Extract possible top-level JSON object substrings from text."""
+    candidates: list[str] = []
+    start = None
+    depth = 0
+    in_string = False
+    escape = False
 
-def _parse_llm_response(response: str) -> list[tuple[str, dict[str, Any]]] | None:
-    """Parse LLM response to extract selected attacks."""
-    # Try to find JSON in the response
-    json_match = re.search(r"\{[\s\S]*\}", response)
-    if not json_match:
+    for i, ch in enumerate(text):
+        if start is None:
+            if ch == "{":
+                start = i
+                depth = 1
+                in_string = False
+                escape = False
+            continue
+
+        if in_string:
+            if escape:
+                escape = False
+            elif ch == "\\":
+                escape = True
+            elif ch == '"':
+                in_string = False
+            continue
+
+        if ch == '"':
+            in_string = True
+        elif ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                candidates.append(text[start : i + 1])
+                start = None
+
+    return candidates
+
+def _extract_codeblock_json_candidates(text: str) -> list[str]:
+    """Extract JSON candidates from fenced code blocks."""
+    pattern = r"```(?:json)?\s*([\s\S]*?)\s*```"
+    matches = re.findall(pattern, text, flags=re.IGNORECASE)
+    return [m.strip() for m in matches if m.strip()]
+
+def _normalize_selected_attacks(
+    data: Any,
+) -> list[tuple[str, dict[str, Any]]] | None:
+    """Validate and normalize parsed JSON into attack selections."""
+    if not isinstance(data, dict):
         return None
 
-    try:
-        data = json.loads(json_match.group())
-    except json.JSONDecodeError:
-        return None
-
-    if "selected_attacks" not in data:
+    selected_attacks = data.get("selected_attacks")
+    if not isinstance(selected_attacks, list):
         return None
 
     results: list[tuple[str, dict[str, Any]]] = []
-    for item in data["selected_attacks"]:
-        if not isinstance(item, dict) or "name" not in item:
+    for item in selected_attacks:
+        if not isinstance(item, dict):
             continue
-        attack_name = item["name"]
+
+        attack_name = item.get("name")
+        if not isinstance(attack_name, str) or not attack_name.strip():
+            continue
+
         reason = item.get("reason", "")
+        if not isinstance(reason, str):
+            reason = str(reason)
+
         params = {"llm_reason": reason}
-        results.append((attack_name, params))
+        results.append((attack_name.strip(), params))
 
     return results if results else None
+
+def _parse_llm_response(response: str) -> list[tuple[str, dict[str, Any]]] | None:
+    """Parse LLM response to extract selected attacks more robustly."""
+    if not isinstance(response, str) or not response.strip():
+        return None
+
+    response = response.strip()
+
+    candidates: list[str] = []
+
+    # 1) Try parsing the whole response as JSON first.
+    candidates.append(response)
+
+    # 2) Try fenced code blocks like ```json ... ```
+    candidates.extend(_extract_codeblock_json_candidates(response))
+
+    # 3) Try extracting balanced top-level JSON objects from free-form text.
+    candidates.extend(_extract_json_candidates(response))
+
+    seen: set[str] = set()
+    deduped_candidates: list[str] = []
+    for candidate in candidates:
+        candidate = candidate.strip()
+        if candidate and candidate not in seen:
+            seen.add(candidate)
+            deduped_candidates.append(candidate)
+
+    for candidate in deduped_candidates:
+        try:
+            data = json.loads(candidate)
+        except json.JSONDecodeError:
+            continue
+
+        normalized = _normalize_selected_attacks(data)
+        if normalized is not None:
+            return normalized
+
+    return None
 
 
 class LLMGuidedStrategy(ExpandStrategy):
@@ -252,6 +340,13 @@ class LLMGuidedStrategy(ExpandStrategy):
         # Get available attack names for validation
         available_attacks = set(name for name, _ in ctx.registry.list_attacks())
 
+        # Build short-name mapping
+        short_to_full = {}
+        for full_name in available_attacks:
+            short_name = full_name.split(":")[-1]
+            if short_name not in short_to_full:
+                short_to_full[short_name] = full_name
+
         # Prepare context for LLM
         goal = ctx.original_prompt
         attack_descriptions = _get_attack_descriptions(ctx.registry)
@@ -280,16 +375,32 @@ class LLMGuidedStrategy(ExpandStrategy):
 
         # Parse response
         selected = None
-        if response:
+        fallback_reason = None
+        if response is None:
+            fallback_reason = "llm_call_failed"
+        elif response:
             selected = _parse_llm_response(response)
+            if selected is None:
+                fallback_reason = "parse_failed"
 
         # Validate selected attacks
         if selected:
             valid_selected = []
             for attack_name, params in selected:
-                if attack_name in available_attacks:
-                    valid_selected.append((attack_name, params))
-            selected = valid_selected if valid_selected else None
+                # if attack_name in available_attacks:
+                #     valid_selected.append((attack_name, params))
+                canonical_name = attack_name
+                if canonical_name not in available_attacks:
+                    canonical_name = short_to_full.get(attack_name, attack_name)
+
+                if canonical_name in available_attacks:
+                    valid_selected.append((canonical_name, params))
+
+            if valid_selected:
+                selected = valid_selected
+            else:
+                selected = None
+                fallback_reason = "invalid_attack_name"
 
         used_fallback = False
         # Fallback to random sampling if LLM failed or returned invalid attacks
@@ -304,6 +415,7 @@ class LLMGuidedStrategy(ExpandStrategy):
                     llm_response=response,
                     selected=fallback_selected,
                     used_fallback=used_fallback,
+                    fallback_reason=fallback_reason,
                 )
                 return fallback_selected
             # Default fallback: random sampling
@@ -322,6 +434,7 @@ class LLMGuidedStrategy(ExpandStrategy):
             llm_response=response,
             selected=selected,
             used_fallback=used_fallback,
+            fallback_reason=fallback_reason,
         )
         return selected
 
@@ -334,6 +447,7 @@ class LLMGuidedStrategy(ExpandStrategy):
         llm_response: str | None,
         selected: list[tuple[str, dict[str, Any]]],
         used_fallback: bool,
+        fallback_reason: str | None = None,
     ) -> None:
         from vlm_redteam.storage.event_log import EventLogger
 
@@ -350,6 +464,7 @@ class LLMGuidedStrategy(ExpandStrategy):
                 "branch_id": branch_id,
                 "strategy": self.name,
                 "used_fallback": used_fallback,
+                "fallback_reason": fallback_reason,
                 "system_prompt": system_prompt,
                 "user_prompt": user_prompt,
                 "llm_response": llm_response,
