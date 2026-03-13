@@ -283,6 +283,7 @@ start_vllm_server() {
 
     CUDA_VISIBLE_DEVICES=$gpu $python_path -m vllm.entrypoints.openai.api_server \
         --model "$model_path" \
+        --served-model-name "$name" \
         --port "$port" \
         --host "0.0.0.0" \
         --dtype "$VLLM_DTYPE" \

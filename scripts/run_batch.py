@@ -135,6 +135,7 @@ def main():
                 "judge_base_url": cfg.judge_base_url or "",
                 "judge_model": cfg.judge_model,
                 "judge_mode": cfg.judge_mode,
+                "judge_api_key": cfg.judge_api_key,
                 "temperature": cfg.temperature,
                 "max_tokens": cfg.max_tokens,
                 "enable_vision": cfg.enable_vision,

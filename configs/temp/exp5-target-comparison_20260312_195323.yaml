@@ -1,0 +1,99 @@
+# 动态实验配置
+# Generated at Thu Mar 12 07:53:23 PM CST 2026
+
+run_id: "exp5-target-comparison-gemma-3-27b-it-gpt-4o-mini-20260312_195323"
+
+# Target Model 配置
+target_vllm_base_url: "http://localhost:8007"
+target_vllm_model: "gemma-3-27b-it"
+
+
+# Judge 配置 (远程API)
+judge_base_url: "https://api.whatai.cc"
+judge_model: "gpt-4o-mini"
+judge_api_key: "sk-WE6FQhZoEr4nBz4KTqHuzAYixq6pQG07VZbRhcHaWdGtMTs2"
+judge_mode: "multidim"
+
+beam_width: 1
+per_branch_candidates: 1
+max_rounds: 3
+
+enable_vision: true
+temperature: 0.2
+max_tokens: 4096
+concurrency: 8
+
+history_strategy: "inherit_parent"
+history_memory_key: "history"
+
+# LLM-guided expand策略
+expand_strategy: "llm_guided"
+llm_guide:
+  base_url: "https://api.whatai.cc"
+  model: "gpt-4o-mini"
+  api_key: "sk-WE6FQhZoEr4nBz4KTqHuzAYixq6pQG07VZbRhcHaWdGtMTs2"
+  temperature: 0.7
+  max_tokens: 4096
+  max_history_rounds: null
+
+enabled_attacks:
+  - attacks_strategy.figstep.attack:FigStepAttack
+  - attacks_strategy.jood.attack:JOODAttack
+  - attacks_strategy.email.attack:EmailThreadAttack
+  - attacks_strategy.flowchart.attack:FlowchartAttack
+  - attacks_strategy.visual_perturb.jigsaw:JigsawScrambleAttack
+  - attacks_strategy.visual_perturb.multimodal_shuffle:MultimodalShuffleAttack
+  - attacks_strategy.socialmedia.attack:SlackAttack
+  - attacks_strategy.mml.attack:MMLAttack
+
+attack_weights:
+  attacks_strategy.figstep.attack:FigStepAttack: 1.0
+  attacks_strategy.jood.attack:JOODAttack: 1.0
+  attacks_strategy.email.attack:EmailThreadAttack: 1.0
+  attacks_strategy.flowchart.attack:FlowchartAttack: 1.0
+  attacks_strategy.visual_perturb.jigsaw:JigsawScrambleAttack: 1.0
+  attacks_strategy.visual_perturb.multimodal_shuffle:MultimodalShuffleAttack: 1.0
+  attacks_strategy.socialmedia.attack:SlackAttack: 1.0
+  attacks_strategy.mml.attack:MMLAttack: 1.0
+
+attack_init_kwargs:
+  attacks_strategy.figstep.attack:FigStepAttack:
+    output_image_dir: runs/exp5-target-comparison-gemma-3-27b-it-gpt-4o-mini-20260312_195323/generated_images
+    config:
+      font_path: /mnt/disk1/szchen/VLMBenchmark/repo/Jailbreak-Redteam/attacks_strategy/Arial Font/ARIAL.TTF
+  attacks_strategy.jood.attack:JOODAttack:
+    output_image_dir: runs/exp5-target-comparison-gemma-3-27b-it-gpt-4o-mini-20260312_195323/generated_images
+    config:
+      harmless_image_path: /mnt/disk1/szchen/VLMBenchmark/repo/OmniSafeBench-MM/dataset/apple.png
+      aug: mixup
+      lam: 0.5
+  attacks_strategy.email.attack:EmailThreadAttack:
+    output_image_dir: runs/exp5-target-comparison-gemma-3-27b-it-gpt-4o-mini-20260312_195323/generated_images
+    config:
+      llm_base_url: "https://api.whatai.cc"
+      llm_api_key: "sk-WE6FQhZoEr4nBz4KTqHuzAYixq6pQG07VZbRhcHaWdGtMTs2"
+      llm_model_name: "gpt-4o-mini"
+  attacks_strategy.flowchart.attack:FlowchartAttack:
+    output_image_dir: runs/exp5-target-comparison-gemma-3-27b-it-gpt-4o-mini-20260312_195323/generated_images
+    config:
+      llm_base_url: "https://api.whatai.cc"
+      llm_api_key: "sk-WE6FQhZoEr4nBz4KTqHuzAYixq6pQG07VZbRhcHaWdGtMTs2"
+      llm_model_name: "gpt-4o-mini"
+  attacks_strategy.visual_perturb.jigsaw:JigsawScrambleAttack:
+    output_image_dir: runs/exp5-target-comparison-gemma-3-27b-it-gpt-4o-mini-20260312_195323/generated_images
+  attacks_strategy.visual_perturb.multimodal_shuffle:MultimodalShuffleAttack:
+    output_image_dir: runs/exp5-target-comparison-gemma-3-27b-it-gpt-4o-mini-20260312_195323/generated_images
+    config:
+      llm_base_url: "https://api.whatai.cc"
+      llm_api_key: "sk-WE6FQhZoEr4nBz4KTqHuzAYixq6pQG07VZbRhcHaWdGtMTs2"
+      llm_model_name: "gpt-4o-mini"
+  attacks_strategy.socialmedia.attack:SlackAttack:
+    output_image_dir: runs/exp5-target-comparison-gemma-3-27b-it-gpt-4o-mini-20260312_195323/generated_images
+    config:
+      llm_base_url: "https://api.whatai.cc"
+      llm_api_key: "sk-WE6FQhZoEr4nBz4KTqHuzAYixq6pQG07VZbRhcHaWdGtMTs2"
+      llm_model_name: "gpt-4o-mini"
+  attacks_strategy.mml.attack:MMLAttack:
+    output_image_dir: runs/exp5-target-comparison-gemma-3-27b-it-gpt-4o-mini-20260312_195323/generated_images
+    config:
+      font_path: /mnt/disk1/szchen/VLMBenchmark/repo/Jailbreak-Redteam/attacks_strategy/Arial Font/ARIAL.TTF

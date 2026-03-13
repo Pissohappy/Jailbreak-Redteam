@@ -34,6 +34,7 @@ class RunConfig(BaseModel):
     judge_base_url: str | None = None
     judge_model: str = "judge-model"
     judge_mode: str = "multidim"  # "multidim" (default) or "strongreject"
+    judge_api_key: str | None = None
     beam_width: int
     per_branch_candidates: int
     max_rounds: int
@@ -240,6 +241,7 @@ def main() -> None:
             "judge_base_url": cfg.judge_base_url or "",
             "judge_model": cfg.judge_model,
             "judge_mode": cfg.judge_mode,
+            "judge_api_key": cfg.judge_api_key,
             "temperature": cfg.temperature,
             "max_tokens": cfg.max_tokens,
             "enable_vision": cfg.enable_vision,
